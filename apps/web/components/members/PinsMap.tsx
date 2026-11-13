@@ -8,6 +8,7 @@ import type { Database } from '@bayou/supabase/types';
 import { colors } from '@bayou/ui/tokens';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import { optimizedImageSrc } from '@/lib/images';
+import { removePinPhotoByUrl, removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 
 interface LeafletDivElement extends HTMLDivElement {
   _leaflet_id?: number;
@@ -26,7 +27,7 @@ interface PinsMapProps {
 
 declare global {
   interface Window {
-    __deletePin?: (id: string) => Promise<void>;
+    __deletePin?: (id: string, photoUrl: string | null) => Promise<void>;
   }
 }
 
@@ -163,8 +164,17 @@ export function PinsMap({ userId, role }: PinsMapProps) {
 
   // Wire window.__deletePin for popup delete buttons
   useEffect(() => {
-    window.__deletePin = async (id: string) => {
-      await supabase.from('pins').delete().eq('id', id);
+    window.__deletePin = async (id: string, photoUrl: string | null) => {
+      const storageError = await removePinPhotoByUrl(supabase, photoUrl);
+      if (storageError) {
+        alert(storageError);
+        return;
+      }
+      const { error } = await supabase.from('pins').delete().eq('id', id);
+      if (error) {
+        alert(error.message);
+        return;
+      }
       await loadPins();
     };
     return () => {
@@ -228,7 +238,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           const deleteBtn = document.createElement('button');
           deleteBtn.textContent = 'Delete';
           deleteBtn.style.cssText = 'margin-top:6px;padding:3px 10px;background:#e8923a;color:white;border:none;border-radius:12px;font-family:serif;font-size:11px;cursor:pointer';
-          deleteBtn.onclick = () => window.__deletePin?.(pin.id);
+          deleteBtn.onclick = () => window.__deletePin?.(pin.id, pin.photo_url);
           popupEl.appendChild(deleteBtn);
         }
 
@@ -257,7 +267,13 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       return;
     }
     setSubmitting(true);
-    const { data, error } = await supabase.from('pins').insert({
+    const uploaded = await uploadPinPhoto(supabase, userId, photo);
+    if ('error' in uploaded) {
+      setSubmitting(false);
+      alert(uploaded.error);
+      return;
+    }
+    const { error } = await supabase.from('pins').insert({
       user_id: userId,
       caption: newPin.caption.trim(),
       location_name: newPin.location_name.trim() || null,
@@ -265,26 +281,20 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       catch_date: newPin.catch_date || today,
       lat: clickedLatLng.lat,
       lng: clickedLatLng.lng,
+      photo_url: uploaded.publicUrl,
       flagged: false,
-    }).select();
-    if (!error) {
-      if (data && data[0]) {
-        const ext = photo.type === 'image/jpeg' ? 'jpg' : (photo.name.split('.').pop() ?? 'jpg');
-        const path = `${userId}/${data[0].id}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from('pin-photos')
-          .upload(path, photo, { upsert: false });
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('pin-photos').getPublicUrl(path);
-          await supabase.from('pins').update({ photo_url: urlData.publicUrl }).eq('id', data[0].id);
-        }
-      }
-      setShowDropForm(false);
-      setNewPin({ caption: '', location_name: '', species: '', catch_date: new Date().toISOString().slice(0, 10) });
-      setClickedLatLng(null);
-      setPinPhoto(null);
-      await loadPins();
+    });
+    if (error) {
+      await removeUploadedPinPhoto(supabase, uploaded.path);
+      setSubmitting(false);
+      alert(error.message);
+      return;
     }
+    setShowDropForm(false);
+    setNewPin({ caption: '', location_name: '', species: '', catch_date: new Date().toISOString().slice(0, 10) });
+    setClickedLatLng(null);
+    setPinPhoto(null);
+    await loadPins();
     setSubmitting(false);
   }
 
