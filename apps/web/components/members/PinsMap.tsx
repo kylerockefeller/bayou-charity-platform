@@ -99,6 +99,20 @@ export function PinsMap({ userId, role }: PinsMapProps) {
     loadPins();
   }, [loadPins]);
 
+  // Keep the page from scrolling while the pointer is over the map.
+  // preventDefault alone: Leaflet's scroll-wheel zoom listens on this same
+  // node, and stopPropagation would not be required for that. Do not stop
+  // the event, or a listener registered later on this node could miss it.
+  useEffect(() => {
+    const container = mapRef.current;
+    if (!container) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+    };
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
+  }, []);
+
   // Initialize Leaflet map
   useEffect(() => {
     if (!mapRef.current) return;
