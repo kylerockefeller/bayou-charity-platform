@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { createClient } from '@bayou/supabase';
 import Image from 'next/image';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
+import { MemberLoadError } from '@/lib/member-session';
 import { backfillArchived } from '@/lib/backfill';
 
 const WeatherWidget = React.lazy(() => import('./community/WeatherWidget'));
@@ -36,6 +37,7 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
   const [pins, setPins] = useState<Pin[]>([]);
   const [reactions, setReactions] = useState<ReactionCounts>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Post form state
   const [caption, setCaption] = useState('');
@@ -50,12 +52,19 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
     setLoading(true);
     // No `.is('archived_at', null)` here — the never-empty rule (lib/backfill.ts)
     // needs archived rows so a quiet season still renders a feed.
-    const { data: pinsData } = await supabase
+    const { data: pinsData, error: pinsError } = await supabase
       .from('pins')
       .select('id, user_id, photo_url, lat, lng, location_name, caption, species, created_at, catch_date, archived_at, profiles(display_name, avatar_url)')
       .eq('flagged', false)
       .order('created_at', { ascending: false })
       .limit(50);
+
+    if (pinsError) {
+      setLoadError('Could not load posts. This is not an empty feed.');
+      setLoading(false);
+      return;
+    }
+    setLoadError(null);
 
     const pinList = backfillArchived((pinsData ?? []) as Pin[]);
     setPins(pinList);
@@ -76,7 +85,7 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
       setReactions(counts);
     }
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => { loadFeed(); }, [loadFeed]);
 
@@ -183,6 +192,10 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
     if (days === 1) return 'yesterday';
     return `${days}d ago`;
   };
+
+  if (loadError) {
+    return <MemberLoadError message={loadError} onRetry={() => { void loadFeed(); }} />;
+  }
 
   if (loading) return (
     <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">

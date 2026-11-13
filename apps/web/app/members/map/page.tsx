@@ -1,11 +1,9 @@
 'use client';
 
 // /members/map — Auth enforced by middleware
-import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { createClient } from '@bayou/supabase';
+import { MemberLoadError, useMemberSession } from '@/lib/member-session';
 
-// Leaflet is ~140KB — isolate to /members/map chunk only
 const PinsMap = dynamic(
   () => import('@/components/members/PinsMap').then((m) => ({ default: m.PinsMap })),
   {
@@ -17,20 +15,11 @@ const PinsMap = dynamic(
 );
 
 export default function MapPage() {
-  const [state, setState] = useState<{ userId: string; role: 'member' | 'guide' | 'admin' } | null>(null);
+  const { session, error, retry } = useMemberSession();
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { window.location.href = '/sign-in'; return; }
-      supabase.from('profiles').select('role').eq('id', session.user.id).single()
-        .then(({ data }) => setState({
-          userId: session.user.id,
-          role: (data?.role ?? 'member') as 'member' | 'guide' | 'admin',
-        }));
-    });
-  }, []);
-
-  if (!state) return null;
-  return <PinsMap userId={state.userId} role={state.role} />;
+  if (error) return <MemberLoadError message={error} onRetry={retry} />;
+  if (!session) {
+    return <p className="text-center py-12 font-serif text-text-mid dark:text-cream/60">Loading map…</p>;
+  }
+  return <PinsMap userId={session.userId} role={session.role} />;
 }
