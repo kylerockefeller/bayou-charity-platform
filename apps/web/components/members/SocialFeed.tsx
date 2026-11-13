@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { createClient } from '@bayou/supabase';
 import Image from 'next/image';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import { backfillArchived } from '@/lib/backfill';
 
 const WeatherWidget = React.lazy(() => import('./community/WeatherWidget'));
@@ -92,9 +92,9 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
     if (!caption.trim()) return;
     // Shared validator — this path previously checked type but not size, so an
     // oversized photo only failed after the pin row was already inserted.
-    const photoError = photoFile ? validateUploadFile(photoFile) : null;
-    if (photoError) {
-      alert(photoError);
+    const preparedPhoto = photoFile ? await prepareUploadFile(photoFile) : null;
+    if (preparedPhoto?.error) {
+      alert(preparedPhoto.error);
       return;
     }
     setPosting(true);
@@ -110,13 +110,14 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
       flagged: false,
     }).select();
 
-    if (!insertError && insertData && insertData[0] && photoFile) {
+    if (!insertError && insertData && insertData[0] && preparedPhoto) {
       const pinId = insertData[0].id;
-      const ext = photoFile.name.split('.').pop();
+      const photo = preparedPhoto.file;
+      const ext = photo.type === 'image/jpeg' ? 'jpg' : (photo.name.split('.').pop() ?? 'jpg');
       const path = `${userId}/${pinId}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('pin-photos')
-        .upload(path, photoFile, { upsert: false });
+        .upload(path, photo, { upsert: false });
       if (!upErr) {
         const { data: { publicUrl } } = supabase.storage.from('pin-photos').getPublicUrl(path);
         await supabase.from('pins').update({ photo_url: publicUrl }).eq('id', pinId);

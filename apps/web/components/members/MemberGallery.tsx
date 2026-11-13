@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import {
   GALLERY_PENDING_BUCKET,
   copyPendingToPublic,
@@ -72,16 +72,17 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
     loadData();
   }, [loadData]);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const validationError = validateUploadFile(f);
-    if (validationError) {
-      setError(validationError);
+    const prepared = await prepareUploadFile(f);
+    if (prepared.error) {
+      setError(prepared.error);
+      setFile(null);
       return;
     }
     setError(null);
-    setFile(f);
+    setFile(prepared.file);
   }
 
   async function handleUpload() {
@@ -89,7 +90,7 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
     setUploading(true);
     setError(null);
 
-    const ext = file.name.split('.').pop();
+    const ext = file.type === 'image/jpeg' ? 'jpg' : (file.name.split('.').pop() ?? 'jpg');
     const path = `${userId}/${Date.now()}.${ext}`;
 
     const { error: storageError } = await supabase.storage
@@ -111,6 +112,7 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
     });
 
     if (dbError) {
+      await supabase.storage.from(GALLERY_PENDING_BUCKET).remove([path]);
       setError(dbError.message);
     } else {
       setFile(null);

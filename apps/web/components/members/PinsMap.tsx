@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
 import { colors } from '@bayou/ui/tokens';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 
 interface LeafletDivElement extends HTMLDivElement {
   _leaflet_id?: number;
@@ -244,11 +244,12 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       alert('Photo required — Please select a photo to post.');
       return;
     }
-    const photoError = validateUploadFile(pinPhoto);
-    if (photoError) {
-      alert(photoError);
+    const preparedPhoto = await prepareUploadFile(pinPhoto);
+    if (preparedPhoto.error) {
+      alert(preparedPhoto.error);
       return;
     }
+    const photo = preparedPhoto.file;
     const today = new Date().toISOString().slice(0, 10);
     if (newPin.catch_date > today) {
       alert('Catch date cannot be in the future.');
@@ -267,11 +268,11 @@ export function PinsMap({ userId, role }: PinsMapProps) {
     }).select();
     if (!error) {
       if (data && data[0]) {
-        const ext = pinPhoto.name.split('.').pop();
+        const ext = photo.type === 'image/jpeg' ? 'jpg' : (photo.name.split('.').pop() ?? 'jpg');
         const path = `${userId}/${data[0].id}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from('pin-photos')
-          .upload(path, pinPhoto, { upsert: false });
+          .upload(path, photo, { upsert: false });
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('pin-photos').getPublicUrl(path);
           await supabase.from('pins').update({ photo_url: urlData.publicUrl }).eq('id', data[0].id);
@@ -522,13 +523,19 @@ export function PinsMap({ userId, role }: PinsMapProps) {
                 accept={ACCEPTED_IMAGE_ACCEPT}
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
-                  const fileError = file ? validateUploadFile(file) : null;
-                  if (fileError) {
-                    alert(fileError);
-                    e.target.value = '';
+                  if (!file) {
+                    setPinPhoto(null);
                     return;
                   }
-                  setPinPhoto(file);
+                  void prepareUploadFile(file).then((prepared) => {
+                    if (prepared.error) {
+                      alert(prepared.error);
+                      e.target.value = '';
+                      setPinPhoto(null);
+                      return;
+                    }
+                    setPinPhoto(prepared.file);
+                  });
                 }}
                 className="block w-full text-sm text-text-dark file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber/20 file:text-amber hover:file:bg-amber/30"
               />
