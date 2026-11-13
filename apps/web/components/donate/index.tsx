@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ZeffyEmbed } from '@/components/shared/ZeffyEmbed';
 import { PAYMENT_METHODS } from '@/lib/payments';
 
@@ -193,6 +194,7 @@ function LicensedGuides() {
         { text: '307-453-1189', href: 'tel:+13074531189' },
         { text: 'info@approachangling.com', href: 'mailto:info@approachangling.com' },
         { text: 'Instagram: @approachanglingcompany', href: 'https://www.instagram.com/approachanglingcompany' },
+        { text: 'Meet our resident fly fishing guide', href: '/guides/john-macmurray' },
       ],
     },
   ];
@@ -203,6 +205,18 @@ function LicensedGuides() {
       <p className="font-serif text-sm text-cream/95 leading-relaxed mb-4">
         These trusted guides support BFF&apos;s mission and offer exceptional Louisiana fishing experiences.
       </p>
+      <div className="bg-amber/10 border border-amber/30 rounded-xl p-4 mb-4">
+        <p className="font-serif text-sm text-cream leading-relaxed">
+          <strong>Meet our resident fly fishing guide.</strong>{' '}
+          Capt. John MacMurray of Approach Angling Co. is Bayou Charity&apos;s fly fishing guide.
+        </p>
+        <Link
+          href="/guides/john-macmurray"
+          className="font-serif text-sm text-amber hover:underline inline-flex items-center min-h-[36px]"
+        >
+          Read his page
+        </Link>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {guides.map(({ title, captain, lines }) => (
           <div

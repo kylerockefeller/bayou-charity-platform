@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/gallery`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${baseUrl}/volunteer`, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${baseUrl}/donate`, changeFrequency: 'monthly', priority: 0.9 },
+    { url: `${baseUrl}/guides/john-macmurray`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${baseUrl}/events/bff-spring-fishing-rodeo-2026`, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${baseUrl}/privacy`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${baseUrl}/terms`, changeFrequency: 'yearly', priority: 0.3 },
