@@ -179,22 +179,6 @@ function LicensedGuides() {
       ],
     },
     {
-      title: 'Down South Fishing Charters',
-      captain: 'Capt. Kevin Hezeau',
-      lines: [
-        { text: 'downsouthfishingchartersnola.com', href: 'https://www.downsouthfishingchartersnola.com/' },
-        { text: '985-768-1656', href: 'tel:9857681656' },
-      ],
-    },
-    {
-      title: 'Bayou Paradise Fish Charters',
-      captain: 'Capt. Mitchel Haydel',
-      lines: [
-        { text: 'geauxfishneworleans.com', href: 'https://www.geauxfishneworleans.com/' },
-        { text: '504-345-0865', href: 'tel:5043450865' },
-      ],
-    },
-    {
       title: 'Marsh Assassins BowFishing',
       captain: 'Capt. Kenny Bergman',
       lines: [
