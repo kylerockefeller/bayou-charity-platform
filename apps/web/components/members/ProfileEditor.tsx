@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
-import { ACCEPTED_IMAGE_ACCEPT, MAX_UPLOAD_LABEL, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, AVATAR_LONG_EDGE, MAX_UPLOAD_LABEL, prepareUploadFile } from '@/lib/uploads';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -40,20 +40,21 @@ export function ProfileEditor({ profile, onSave }: ProfileEditorProps) {
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const validationError = validateUploadFile(file);
-    if (validationError) {
-      setError(validationError);
+    const prepared = await prepareUploadFile(file, { maxEdge: AVATAR_LONG_EDGE });
+    if (prepared.error) {
+      setError(prepared.error);
       return;
     }
     setError(null);
     setUploading(true);
 
-    const ext = file.name.split('.').pop();
+    const avatar = prepared.file;
+    const ext = avatar.type === 'image/jpeg' ? 'jpg' : (avatar.name.split('.').pop() ?? 'jpg');
     const path = `${profile.id}/avatar.${ext}`;
 
     const { error: storageError } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true });
+      .upload(path, avatar, { upsert: true });
 
     if (storageError) {
       setError(storageError.message);

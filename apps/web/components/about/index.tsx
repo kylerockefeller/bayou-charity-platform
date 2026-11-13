@@ -117,10 +117,10 @@ export default function About() {
                   ✉ kyle.rockefeller@bayoucharity.org
                 </Link>
                 <Link
-                  href="tel:5045070560"
+                  href="tel:+15044745178"
                   className="inline-flex items-center gap-2 bg-green-water/10 dark:bg-green-water/30 text-green-water dark:text-cream font-sans text-sm px-4 py-2 rounded-full hover:bg-green-water/20 dark:hover:bg-green-water/40 transition-colors"
                 >
-                  📞 504-507-0560
+                  📞 504-474-5178
                 </Link>
               </div>
             </div>

@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { Map as LeafletMap, Layer as LeafletLayer } from 'leaflet';
+import type { LayerGroup, Map as LeafletMap } from 'leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
 import { colors } from '@bayou/ui/tokens';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
+import { optimizedImageSrc } from '@/lib/images';
+import { normalizePinCrop } from '@/lib/pin-crop';
+import { PinCropEditor } from '@/components/members/PinCropEditor';
+import { removePinPhotoByUrl, removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 
 interface LeafletDivElement extends HTMLDivElement {
   _leaflet_id?: number;
@@ -25,9 +29,13 @@ interface PinsMapProps {
 
 declare global {
   interface Window {
-    __deletePin?: (id: string) => Promise<void>;
+    __deletePin?: (id: string, photoUrl: string | null) => Promise<void>;
+    __editPinCrop?: (id: string) => void;
   }
 }
+
+const BASE_LAYER_STORAGE_KEY = 'bayou-pins-base-layer';
+const NAUTICAL_LAYER_NAME = 'NOAA nautical chart';
 
 const SEASONS: Season[] = ['All', 'Spring', 'Summer', 'Fall', 'Winter'];
 
@@ -41,6 +49,9 @@ const SEASON_MONTHS: Record<Season, number[]> = {
 
 export function PinsMap({ userId, role }: PinsMapProps) {
   const mapRef = useRef<LeafletDivElement>(null);
+  const pinsGroupRef = useRef<LayerGroup | null>(null);
+  const pendingGroupRef = useRef<LayerGroup | null>(null);
+  const [chartLayerActive, setChartLayerActive] = useState(false);
   const [pins, setPins] = useState<Pin[]>([]);
   const [season, setSeason] = useState<Season>('All');
   const [year, setYear] = useState<number>(new Date().getFullYear());
@@ -60,6 +71,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
   const [geoStatus, setGeoStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [cropPinId, setCropPinId] = useState<string | null>(null);
   const pendingMarkerRef = useRef<unknown>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -97,6 +109,20 @@ export function PinsMap({ userId, role }: PinsMapProps) {
     loadPins();
   }, [loadPins]);
 
+  // Keep the page from scrolling while the pointer is over the map.
+  // preventDefault alone: Leaflet's scroll-wheel zoom listens on this same
+  // node, and stopPropagation would not be required for that. Do not stop
+  // the event, or a listener registered later on this node could miss it.
+  useEffect(() => {
+    const container = mapRef.current;
+    if (!container) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+    };
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
+  }, []);
+
   // Initialize Leaflet map
   useEffect(() => {
     if (!mapRef.current) return;
@@ -123,16 +149,64 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       if (!mapRef.current) return;
       if (mapRef.current._leaflet_id) return;
 
-      map = L.map(mapRef.current).setView([mapCenter.lat, mapCenter.lng], mapZoom);
+      const leafletMap = L.map(mapRef.current).setView([mapCenter.lat, mapCenter.lng], mapZoom);
+      map = leafletMap;
 
-      // Esri World Imagery satellite tiles
-      L.tileLayer(
+      // Pins sit on their own pane, above every base layer.
+      leafletMap.createPane('pins');
+      const pinsPane = leafletMap.getPane('pins');
+      if (pinsPane) pinsPane.style.zIndex = '650';
+
+      const pinsGroup = L.layerGroup().addTo(leafletMap);
+      const pendingGroup = L.layerGroup().addTo(leafletMap);
+      pinsGroupRef.current = pinsGroup;
+      pendingGroupRef.current = pendingGroup;
+
+      const satellite = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {
-          attribution: '&copy; Esri &mdash; Source: Esri, USGS, NOAA',
+          attribution: '&copy; Esri, USGS, NOAA',
           maxZoom: 19,
         }
-      ).addTo(map as LeafletMap);
+      );
+      const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      });
+      // NOAAChartDisplay on this host returns an empty image for Barataria Bay.
+      // The ENC coastal WMS (layer 0) returns a real chart PNG for ~29.4,-89.9.
+      const nautical = L.tileLayer.wms(
+        'https://gis.charttools.noaa.gov/arcgis/services/encdirect/enc_coastal/MapServer/WMSServer',
+        {
+          layers: '0',
+          format: 'image/png',
+          transparent: false,
+          version: '1.1.1',
+          attribution: 'NOAA Office of Coast Survey ENC &mdash; Not for navigation',
+          maxZoom: 16,
+        }
+      );
+
+      const baseLayers: Record<string, L.TileLayer | L.TileLayer.WMS> = {
+        Satellite: satellite,
+        'Street map': street,
+        [NAUTICAL_LAYER_NAME]: nautical,
+      };
+
+      let initialName = 'Satellite';
+      try {
+        const stored = localStorage.getItem(BASE_LAYER_STORAGE_KEY);
+        if (stored && stored in baseLayers) initialName = stored;
+      } catch { /* private mode */ }
+      baseLayers[initialName].addTo(leafletMap);
+      setChartLayerActive(initialName === NAUTICAL_LAYER_NAME);
+
+      const collapsed = window.matchMedia('(max-width: 767px)').matches;
+      L.control.layers(baseLayers, undefined, { position: 'topright', collapsed }).addTo(leafletMap);
+      leafletMap.on('baselayerchange', (event: L.LayersControlEvent) => {
+        try { localStorage.setItem(BASE_LAYER_STORAGE_KEY, event.name); } catch { /* private mode */ }
+        setChartLayerActive(event.name === NAUTICAL_LAYER_NAME);
+      });
 
       // Track center/zoom for FisherMap deep-link
       (map as LeafletMap).on('moveend', () => {
@@ -160,10 +234,24 @@ export function PinsMap({ userId, role }: PinsMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    window.__editPinCrop = (id: string) => setCropPinId(id);
+    return () => { delete window.__editPinCrop; };
+  }, []);
+
   // Wire window.__deletePin for popup delete buttons
   useEffect(() => {
-    window.__deletePin = async (id: string) => {
-      await supabase.from('pins').delete().eq('id', id);
+    window.__deletePin = async (id: string, photoUrl: string | null) => {
+      const storageError = await removePinPhotoByUrl(supabase, photoUrl);
+      if (storageError) {
+        alert(storageError);
+        return;
+      }
+      const { error } = await supabase.from('pins').delete().eq('id', id);
+      if (error) {
+        alert(error.message);
+        return;
+      }
       await loadPins();
     };
     return () => {
@@ -175,12 +263,9 @@ export function PinsMap({ userId, role }: PinsMapProps) {
   useEffect(() => {
     if (!mapInstance) return;
     import('leaflet').then((L) => {
-      // Clear existing markers
-      mapInstance.eachLayer((layer: L.Layer) => {
-        if (layer instanceof L.Marker) {
-          mapInstance.removeLayer(layer);
-        }
-      });
+      const pinsGroup = pinsGroupRef.current;
+      if (!pinsGroup) return;
+      pinsGroup.clearLayers();
 
       pins.forEach((pin) => {
         const name = pin.profiles?.display_name ?? 'Member';
@@ -201,10 +286,15 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           try {
             const url = new URL(pin.photo_url);
             if (url.protocol === 'https:') {
+              const crop = normalizePinCrop(pin);
+              const frame = document.createElement('div');
+              frame.style.cssText = 'width:100%;aspect-ratio:2/1;overflow:hidden;border-radius:8px;margin-bottom:6px;';
               const img = document.createElement('img');
-              img.src = pin.photo_url;
-              img.style.cssText = 'width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:6px';
-              popupEl.appendChild(img);
+              img.src = optimizedImageSrc(pin.photo_url, 640);
+              img.alt = pin.caption ?? 'Catch photo';
+              img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${crop.x}% ${crop.y}%;transform:scale(${crop.zoom});transform-origin:${crop.x}% ${crop.y}%;`;
+              frame.appendChild(img);
+              popupEl.appendChild(frame);
             }
           } catch { /* invalid URL — skip image */ }
         }
@@ -227,13 +317,22 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           const deleteBtn = document.createElement('button');
           deleteBtn.textContent = 'Delete';
           deleteBtn.style.cssText = 'margin-top:6px;padding:3px 10px;background:#e8923a;color:white;border:none;border-radius:12px;font-family:serif;font-size:11px;cursor:pointer';
-          deleteBtn.onclick = () => window.__deletePin?.(pin.id);
+          deleteBtn.onclick = () => window.__deletePin?.(pin.id, pin.photo_url);
           popupEl.appendChild(deleteBtn);
         }
 
-        L.marker([pin.lat, pin.lng], { icon })
-          .addTo(mapInstance)
-          .bindPopup(popupEl);
+        if (role === 'admin' && pin.photo_url) {
+          popupEl.appendChild(document.createElement('br'));
+          const cropBtn = document.createElement('button');
+          cropBtn.textContent = 'Adjust crop';
+          cropBtn.style.cssText = 'margin-top:6px;padding:3px 10px;background:#0d2b3e;color:#eef6fb;border:none;border-radius:12px;font-family:serif;font-size:11px;cursor:pointer';
+          cropBtn.onclick = () => window.__editPinCrop?.(pin.id);
+          popupEl.appendChild(cropBtn);
+        }
+
+        const marker = L.marker([pin.lat, pin.lng], { icon, pane: 'pins' });
+        marker.bindPopup(popupEl);
+        pinsGroup.addLayer(marker);
       });
     });
   }, [mapInstance, pins, role, userId]);
@@ -244,18 +343,25 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       alert('Photo required — Please select a photo to post.');
       return;
     }
-    const photoError = validateUploadFile(pinPhoto);
-    if (photoError) {
-      alert(photoError);
+    const preparedPhoto = await prepareUploadFile(pinPhoto);
+    if (preparedPhoto.error) {
+      alert(preparedPhoto.error);
       return;
     }
+    const photo = preparedPhoto.file;
     const today = new Date().toISOString().slice(0, 10);
     if (newPin.catch_date > today) {
       alert('Catch date cannot be in the future.');
       return;
     }
     setSubmitting(true);
-    const { data, error } = await supabase.from('pins').insert({
+    const uploaded = await uploadPinPhoto(supabase, userId, photo);
+    if ('error' in uploaded) {
+      setSubmitting(false);
+      alert(uploaded.error);
+      return;
+    }
+    const { error } = await supabase.from('pins').insert({
       user_id: userId,
       caption: newPin.caption.trim(),
       location_name: newPin.location_name.trim() || null,
@@ -263,45 +369,35 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       catch_date: newPin.catch_date || today,
       lat: clickedLatLng.lat,
       lng: clickedLatLng.lng,
+      photo_url: uploaded.publicUrl,
       flagged: false,
-    }).select();
-    if (!error) {
-      if (data && data[0]) {
-        const ext = pinPhoto.name.split('.').pop();
-        const path = `${userId}/${data[0].id}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from('pin-photos')
-          .upload(path, pinPhoto, { upsert: false });
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('pin-photos').getPublicUrl(path);
-          await supabase.from('pins').update({ photo_url: urlData.publicUrl }).eq('id', data[0].id);
-        }
-      }
-      setShowDropForm(false);
-      setNewPin({ caption: '', location_name: '', species: '', catch_date: new Date().toISOString().slice(0, 10) });
-      setClickedLatLng(null);
-      setPinPhoto(null);
-      await loadPins();
+    });
+    if (error) {
+      await removeUploadedPinPhoto(supabase, uploaded.path);
+      setSubmitting(false);
+      alert(error.message);
+      return;
     }
+    setShowDropForm(false);
+    setNewPin({ caption: '', location_name: '', species: '', catch_date: new Date().toISOString().slice(0, 10) });
+    setClickedLatLng(null);
+    setPinPhoto(null);
+    await loadPins();
     setSubmitting(false);
   }
 
   // Update pending marker on map when clickedLatLng changes
   useEffect(() => {
     if (!mapInstance || !clickedLatLng) {
-      // Remove pending marker if no location
-      if (pendingMarkerRef.current && mapInstance) {
-        mapInstance.removeLayer(pendingMarkerRef.current as LeafletLayer);
-        pendingMarkerRef.current = null;
-      }
+      pendingGroupRef.current?.clearLayers();
+      pendingMarkerRef.current = null;
       return;
     }
 
     import('leaflet').then((L) => {
-      // Remove old pending marker
-      if (pendingMarkerRef.current) {
-        mapInstance.removeLayer(pendingMarkerRef.current as LeafletLayer);
-      }
+      const pendingGroup = pendingGroupRef.current;
+      if (!pendingGroup) return;
+      pendingGroup.clearLayers();
 
       const pendingIcon = L.divIcon({
         html: `<div style="width:40px;height:40px;border-radius:50%;background:${colors['amber']};display:flex;align-items:center;justify-content:center;font-size:20px;border:3px solid white;box-shadow:0 0 12px rgba(232,146,58,0.8),0 4px 12px rgba(0,0,0,0.3);animation:pulse 1.5s ease-in-out infinite">📍</div>`,
@@ -313,7 +409,9 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       const marker = L.marker([clickedLatLng.lat, clickedLatLng.lng], {
         icon: pendingIcon,
         draggable: true,
-      }).addTo(mapInstance);
+        pane: 'pins',
+      });
+      pendingGroup.addLayer(marker);
 
       marker.on('dragend', () => {
         const pos = marker.getLatLng();
@@ -442,6 +540,13 @@ export function PinsMap({ userId, role }: PinsMapProps) {
         style={{ height: 'calc(100vh - 14rem)', isolation: 'isolate' }}
       >
         <div ref={mapRef} className="w-full h-full" />
+        {chartLayerActive && (
+          <div className="absolute top-3 left-3 z-[1000] pointer-events-none">
+            <p className="text-xs font-serif text-green-deep bg-cream/95 border border-amber rounded-full px-3 py-1 shadow-sm">
+              Not for navigation
+            </p>
+          </div>
+        )}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] text-center">
           <p className="text-xs text-white/80 bg-green-deep/60 backdrop-blur-sm rounded-full px-3 py-1 font-serif">
             {clickedLatLng
@@ -522,13 +627,19 @@ export function PinsMap({ userId, role }: PinsMapProps) {
                 accept={ACCEPTED_IMAGE_ACCEPT}
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
-                  const fileError = file ? validateUploadFile(file) : null;
-                  if (fileError) {
-                    alert(fileError);
-                    e.target.value = '';
+                  if (!file) {
+                    setPinPhoto(null);
                     return;
                   }
-                  setPinPhoto(file);
+                  void prepareUploadFile(file).then((prepared) => {
+                    if (prepared.error) {
+                      alert(prepared.error);
+                      e.target.value = '';
+                      setPinPhoto(null);
+                      return;
+                    }
+                    setPinPhoto(prepared.file);
+                  });
                 }}
                 className="block w-full text-sm text-text-dark file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber/20 file:text-amber hover:file:bg-amber/30"
               />
@@ -551,6 +662,29 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      {cropPinId && (() => {
+        const pin = pins.find((item) => item.id === cropPinId && item.photo_url);
+        if (!pin?.photo_url) return null;
+        return (
+          <PinCropEditor
+            pin={{
+              id: pin.id,
+              photo_url: pin.photo_url,
+              caption: pin.caption,
+              photo_crop_x: pin.photo_crop_x,
+              photo_crop_y: pin.photo_crop_y,
+              photo_crop_zoom: pin.photo_crop_zoom,
+            }}
+            onClose={() => setCropPinId(null)}
+            onSaved={(crop) => {
+              setPins((current) => current.map((item) => item.id === pin.id
+                ? { ...item, photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom }
+                : item));
+              setCropPinId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

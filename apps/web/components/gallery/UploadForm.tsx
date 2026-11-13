@@ -1,11 +1,12 @@
 'use client';
 
 // UploadForm — Client Component
-// Auth-gated photo upload to Supabase gallery-pending bucket (≤10 MB)
+// Auth-gated photo upload to Supabase gallery-pending bucket.
+// Size cap: MAX_UPLOAD_BYTES in lib/uploads.ts.
 
 import { useState, useRef, type ChangeEvent, type FormEvent } from 'react';
 import { createClient } from '@bayou/supabase';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, MAX_UPLOAD_LABEL, prepareUploadFile } from '@/lib/uploads';
 import { GALLERY_PENDING_BUCKET } from '@/lib/gallery';
 
 interface UploadFormProps {
@@ -20,21 +21,19 @@ export default function UploadForm({ userId }: UploadFormProps) {
   const [success, setSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     setError(null);
     setSuccess(false);
     const selected = e.target.files?.[0] ?? null;
     if (!selected) return;
-    // Shared validator (lib/uploads.ts) — this form previously accepted any
-    // image/* which let HEIC into the review queue; now it enforces the same
-    // list as the members-area upload surfaces.
-    const validationError = validateUploadFile(selected);
-    if (validationError) {
-      setError(validationError);
+    // prepareUploadFile resizes, bakes in orientation, and strips EXIF.
+    const prepared = await prepareUploadFile(selected);
+    if (prepared.error) {
+      setError(prepared.error);
       setFile(null);
       return;
     }
-    setFile(selected);
+    setFile(prepared.file);
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -46,7 +45,7 @@ export default function UploadForm({ userId }: UploadFormProps) {
 
     try {
       const supabase = createClient();
-      const ext = file.name.split('.').pop() ?? 'jpg';
+      const ext = file.type === 'image/jpeg' ? 'jpg' : (file.name.split('.').pop() ?? 'jpg');
       const path = `${userId}/${Date.now()}.${ext}`;
 
       const { error: storageError } = await supabase.storage
@@ -64,7 +63,10 @@ export default function UploadForm({ userId }: UploadFormProps) {
           status: 'pending',
         });
 
-      if (dbError) throw new Error(dbError.message);
+      if (dbError) {
+        await supabase.storage.from(GALLERY_PENDING_BUCKET).remove([path]);
+        throw new Error(dbError.message);
+      }
 
       setSuccess(true);
       setFile(null);
@@ -87,7 +89,7 @@ export default function UploadForm({ userId }: UploadFormProps) {
         Upload a Photo
       </h3>
       <p className="font-serif text-sm text-text-mid dark:text-cream/70">
-        Share your memories with the BFF community. Max 10 MB. Photos go to
+        Share your memories with the BFF community. Max {MAX_UPLOAD_LABEL}. Photos go to
         an admin review queue before publishing.
       </p>
 

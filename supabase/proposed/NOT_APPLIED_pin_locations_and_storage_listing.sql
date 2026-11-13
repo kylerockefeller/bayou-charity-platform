@@ -1,0 +1,63 @@
+-- NOT APPLIED. Draft only. Do not run this against the live Supabase project
+-- until Kyle compares it with the policies that are already in the dashboard.
+-- Applying it blindly can hide map pins or lock members out of their photos.
+--
+-- Why this exists:
+--   The members feed selects pins.lat and pins.lng even though the feed UI
+--   does not show a coordinate. That ships exact fishing spots to every
+--   signed-in member. Storage list policies, if they allow a broad SELECT on
+--   storage.objects, let a member enumerate other people's files.
+--
+-- Feed posts from /members/feed still insert lat = 0, lng = 0 because that
+-- form has no map point. A policy that rejects 0,0 would break those posts.
+
+-- Example: a view the feed can read. The owner keeps exact coordinates.
+-- Everyone else gets a coarse point (about 1 km). The map would need to
+-- switch to this view before the base table's lat/lng are revoked.
+--
+-- create or replace view public.pins_coarse as
+-- select
+--   id,
+--   user_id,
+--   photo_url,
+--   location_name,
+--   caption,
+--   species,
+--   created_at,
+--   catch_date,
+--   archived_at,
+--   flagged,
+--   case
+--     when user_id = auth.uid() then lat
+--     else round(lat::numeric, 2)
+--   end as lat,
+--   case
+--     when user_id = auth.uid() then lng
+--     else round(lng::numeric, 2)
+--   end as lng
+-- from public.pins
+-- where flagged = false;
+--
+-- grant select on public.pins_coarse to authenticated;
+--
+-- After the app reads pins_coarse instead of pins for other members:
+-- revoke select (lat, lng) on public.pins from authenticated, anon;
+
+-- Storage listing. Confirm the live policies before replacing them.
+-- The intended shape is: a member can read or list only objects under
+-- their own folder (`<auth.uid()>/...`) in pin-photos and avatars, plus
+-- public read of gallery-public. gallery-pending stays private and is
+-- read through signed URLs (already how the app asks for thumbnails).
+--
+-- example, NOT a drop-in replacement:
+--
+-- drop policy if exists "members read own pin photos" on storage.objects;
+-- create policy "members read own pin photos"
+--   on storage.objects for select to authenticated
+--   using (
+--     bucket_id = 'pin-photos'
+--     and (storage.foldername(name))[1] = auth.uid()::text
+--   );
+--
+-- Do not add a policy that allows `bucket_id = 'pin-photos'` with no folder
+-- check. That is the listing leak this draft is meant to close.

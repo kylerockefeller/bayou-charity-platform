@@ -340,6 +340,9 @@ export type Database = {
           lng: number
           location_name: string | null
           photo_url: string | null
+          photo_crop_x: number | null
+          photo_crop_y: number | null
+          photo_crop_zoom: number | null
           species: string | null
           user_id: string | null
         }
@@ -354,6 +357,9 @@ export type Database = {
           lng: number
           location_name?: string | null
           photo_url?: string | null
+          photo_crop_x?: number | null
+          photo_crop_y?: number | null
+          photo_crop_zoom?: number | null
           species?: string | null
           user_id?: string | null
         }
@@ -368,6 +374,9 @@ export type Database = {
           lng?: number
           location_name?: string | null
           photo_url?: string | null
+          photo_crop_x?: number | null
+          photo_crop_y?: number | null
+          photo_crop_zoom?: number | null
           species?: string | null
           user_id?: string | null
         }
