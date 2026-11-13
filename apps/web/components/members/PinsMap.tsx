@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { Map as LeafletMap, Layer as LeafletLayer } from 'leaflet';
+import type { LayerGroup, Map as LeafletMap } from 'leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
@@ -31,6 +31,9 @@ declare global {
   }
 }
 
+const BASE_LAYER_STORAGE_KEY = 'bayou-pins-base-layer';
+const NAUTICAL_LAYER_NAME = 'NOAA nautical chart';
+
 const SEASONS: Season[] = ['All', 'Spring', 'Summer', 'Fall', 'Winter'];
 
 const SEASON_MONTHS: Record<Season, number[]> = {
@@ -43,6 +46,9 @@ const SEASON_MONTHS: Record<Season, number[]> = {
 
 export function PinsMap({ userId, role }: PinsMapProps) {
   const mapRef = useRef<LeafletDivElement>(null);
+  const pinsGroupRef = useRef<LayerGroup | null>(null);
+  const pendingGroupRef = useRef<LayerGroup | null>(null);
+  const [chartLayerActive, setChartLayerActive] = useState(false);
   const [pins, setPins] = useState<Pin[]>([]);
   const [season, setSeason] = useState<Season>('All');
   const [year, setYear] = useState<number>(new Date().getFullYear());
@@ -139,16 +145,64 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       if (!mapRef.current) return;
       if (mapRef.current._leaflet_id) return;
 
-      map = L.map(mapRef.current).setView([mapCenter.lat, mapCenter.lng], mapZoom);
+      const leafletMap = L.map(mapRef.current).setView([mapCenter.lat, mapCenter.lng], mapZoom);
+      map = leafletMap;
 
-      // Esri World Imagery satellite tiles
-      L.tileLayer(
+      // Pins sit on their own pane, above every base layer.
+      leafletMap.createPane('pins');
+      const pinsPane = leafletMap.getPane('pins');
+      if (pinsPane) pinsPane.style.zIndex = '650';
+
+      const pinsGroup = L.layerGroup().addTo(leafletMap);
+      const pendingGroup = L.layerGroup().addTo(leafletMap);
+      pinsGroupRef.current = pinsGroup;
+      pendingGroupRef.current = pendingGroup;
+
+      const satellite = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {
-          attribution: '&copy; Esri &mdash; Source: Esri, USGS, NOAA',
+          attribution: '&copy; Esri, USGS, NOAA',
           maxZoom: 19,
         }
-      ).addTo(map as LeafletMap);
+      );
+      const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      });
+      // NOAAChartDisplay on this host returns an empty image for Barataria Bay.
+      // The ENC coastal WMS (layer 0) returns a real chart PNG for ~29.4,-89.9.
+      const nautical = L.tileLayer.wms(
+        'https://gis.charttools.noaa.gov/arcgis/services/encdirect/enc_coastal/MapServer/WMSServer',
+        {
+          layers: '0',
+          format: 'image/png',
+          transparent: false,
+          version: '1.1.1',
+          attribution: 'NOAA Office of Coast Survey ENC &mdash; Not for navigation',
+          maxZoom: 16,
+        }
+      );
+
+      const baseLayers: Record<string, L.TileLayer | L.TileLayer.WMS> = {
+        Satellite: satellite,
+        'Street map': street,
+        [NAUTICAL_LAYER_NAME]: nautical,
+      };
+
+      let initialName = 'Satellite';
+      try {
+        const stored = localStorage.getItem(BASE_LAYER_STORAGE_KEY);
+        if (stored && stored in baseLayers) initialName = stored;
+      } catch { /* private mode */ }
+      baseLayers[initialName].addTo(leafletMap);
+      setChartLayerActive(initialName === NAUTICAL_LAYER_NAME);
+
+      const collapsed = window.matchMedia('(max-width: 767px)').matches;
+      L.control.layers(baseLayers, undefined, { position: 'topright', collapsed }).addTo(leafletMap);
+      leafletMap.on('baselayerchange', (event: L.LayersControlEvent) => {
+        try { localStorage.setItem(BASE_LAYER_STORAGE_KEY, event.name); } catch { /* private mode */ }
+        setChartLayerActive(event.name === NAUTICAL_LAYER_NAME);
+      });
 
       // Track center/zoom for FisherMap deep-link
       (map as LeafletMap).on('moveend', () => {
@@ -200,12 +254,9 @@ export function PinsMap({ userId, role }: PinsMapProps) {
   useEffect(() => {
     if (!mapInstance) return;
     import('leaflet').then((L) => {
-      // Clear existing markers
-      mapInstance.eachLayer((layer: L.Layer) => {
-        if (layer instanceof L.Marker) {
-          mapInstance.removeLayer(layer);
-        }
-      });
+      const pinsGroup = pinsGroupRef.current;
+      if (!pinsGroup) return;
+      pinsGroup.clearLayers();
 
       pins.forEach((pin) => {
         const name = pin.profiles?.display_name ?? 'Member';
@@ -256,9 +307,9 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           popupEl.appendChild(deleteBtn);
         }
 
-        L.marker([pin.lat, pin.lng], { icon })
-          .addTo(mapInstance)
-          .bindPopup(popupEl);
+        const marker = L.marker([pin.lat, pin.lng], { icon, pane: 'pins' });
+        marker.bindPopup(popupEl);
+        pinsGroup.addLayer(marker);
       });
     });
   }, [mapInstance, pins, role, userId]);
@@ -315,19 +366,15 @@ export function PinsMap({ userId, role }: PinsMapProps) {
   // Update pending marker on map when clickedLatLng changes
   useEffect(() => {
     if (!mapInstance || !clickedLatLng) {
-      // Remove pending marker if no location
-      if (pendingMarkerRef.current && mapInstance) {
-        mapInstance.removeLayer(pendingMarkerRef.current as LeafletLayer);
-        pendingMarkerRef.current = null;
-      }
+      pendingGroupRef.current?.clearLayers();
+      pendingMarkerRef.current = null;
       return;
     }
 
     import('leaflet').then((L) => {
-      // Remove old pending marker
-      if (pendingMarkerRef.current) {
-        mapInstance.removeLayer(pendingMarkerRef.current as LeafletLayer);
-      }
+      const pendingGroup = pendingGroupRef.current;
+      if (!pendingGroup) return;
+      pendingGroup.clearLayers();
 
       const pendingIcon = L.divIcon({
         html: `<div style="width:40px;height:40px;border-radius:50%;background:${colors['amber']};display:flex;align-items:center;justify-content:center;font-size:20px;border:3px solid white;box-shadow:0 0 12px rgba(232,146,58,0.8),0 4px 12px rgba(0,0,0,0.3);animation:pulse 1.5s ease-in-out infinite">📍</div>`,
@@ -339,7 +386,9 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       const marker = L.marker([clickedLatLng.lat, clickedLatLng.lng], {
         icon: pendingIcon,
         draggable: true,
-      }).addTo(mapInstance);
+        pane: 'pins',
+      });
+      pendingGroup.addLayer(marker);
 
       marker.on('dragend', () => {
         const pos = marker.getLatLng();
@@ -468,6 +517,13 @@ export function PinsMap({ userId, role }: PinsMapProps) {
         style={{ height: 'calc(100vh - 14rem)', isolation: 'isolate' }}
       >
         <div ref={mapRef} className="w-full h-full" />
+        {chartLayerActive && (
+          <div className="absolute top-3 left-3 z-[1000] pointer-events-none">
+            <p className="text-xs font-serif text-green-deep bg-cream/95 border border-amber rounded-full px-3 py-1 shadow-sm">
+              Not for navigation
+            </p>
+          </div>
+        )}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] text-center">
           <p className="text-xs text-white/80 bg-green-deep/60 backdrop-blur-sm rounded-full px-3 py-1 font-serif">
             {clickedLatLng
