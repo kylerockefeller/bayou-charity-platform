@@ -185,6 +185,16 @@ function LicensedGuides() {
         { text: 'marshassassinsbowfishing.com', href: 'https://www.marshassassinsbowfishing.com/' },
       ],
     },
+    {
+      title: 'Approach Angling Co.',
+      captain: 'Capt. John MacMurray',
+      lines: [
+        { text: 'approachangling.com', href: 'https://approachangling.com' },
+        { text: '307-453-1189', href: 'tel:+13074531189' },
+        { text: 'info@approachangling.com', href: 'mailto:info@approachangling.com' },
+        { text: 'Instagram: @approachanglingcompany', href: 'https://www.instagram.com/approachanglingcompany' },
+      ],
+    },
   ];
 
   return (
