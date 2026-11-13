@@ -441,13 +441,18 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 cursor-pointer p-4"
         onClick={() => setExpandedPhoto(null)}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={expandedPhoto}
-          alt="Expanded catch photo"
-          className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl"
+        <div
+          className="relative w-full max-w-3xl h-[80vh]"
           onClick={e => e.stopPropagation()}
-        />
+        >
+          <Image
+            src={expandedPhoto}
+            alt="Expanded catch photo"
+            fill
+            className="object-contain rounded-xl"
+            sizes="(max-width: 768px) 100vw, 768px"
+          />
+        </div>
         <button
           className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full w-9 h-9 flex items-center justify-center text-lg font-bold leading-none"
           onClick={() => setExpandedPhoto(null)}

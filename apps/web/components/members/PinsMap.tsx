@@ -7,6 +7,7 @@ import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
 import { colors } from '@bayou/ui/tokens';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
+import { optimizedImageSrc } from '@/lib/images';
 
 interface LeafletDivElement extends HTMLDivElement {
   _leaflet_id?: number;
@@ -202,7 +203,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
             const url = new URL(pin.photo_url);
             if (url.protocol === 'https:') {
               const img = document.createElement('img');
-              img.src = pin.photo_url;
+              img.src = optimizedImageSrc(pin.photo_url, 640);
               img.style.cssText = 'width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:6px';
               popupEl.appendChild(img);
             }
