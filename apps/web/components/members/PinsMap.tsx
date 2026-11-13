@@ -8,6 +8,8 @@ import type { Database } from '@bayou/supabase/types';
 import { colors } from '@bayou/ui/tokens';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import { optimizedImageSrc } from '@/lib/images';
+import { normalizePinCrop } from '@/lib/pin-crop';
+import { PinCropEditor } from '@/components/members/PinCropEditor';
 import { removePinPhotoByUrl, removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 
 interface LeafletDivElement extends HTMLDivElement {
@@ -28,6 +30,7 @@ interface PinsMapProps {
 declare global {
   interface Window {
     __deletePin?: (id: string, photoUrl: string | null) => Promise<void>;
+    __editPinCrop?: (id: string) => void;
   }
 }
 
@@ -68,6 +71,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
   const [geoStatus, setGeoStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [cropPinId, setCropPinId] = useState<string | null>(null);
   const pendingMarkerRef = useRef<unknown>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -230,6 +234,11 @@ export function PinsMap({ userId, role }: PinsMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    window.__editPinCrop = (id: string) => setCropPinId(id);
+    return () => { delete window.__editPinCrop; };
+  }, []);
+
   // Wire window.__deletePin for popup delete buttons
   useEffect(() => {
     window.__deletePin = async (id: string, photoUrl: string | null) => {
@@ -277,10 +286,15 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           try {
             const url = new URL(pin.photo_url);
             if (url.protocol === 'https:') {
+              const crop = normalizePinCrop(pin);
+              const frame = document.createElement('div');
+              frame.style.cssText = 'width:100%;aspect-ratio:2/1;overflow:hidden;border-radius:8px;margin-bottom:6px;';
               const img = document.createElement('img');
               img.src = optimizedImageSrc(pin.photo_url, 640);
-              img.style.cssText = 'width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:6px';
-              popupEl.appendChild(img);
+              img.alt = pin.caption ?? 'Catch photo';
+              img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${crop.x}% ${crop.y}%;transform:scale(${crop.zoom});transform-origin:${crop.x}% ${crop.y}%;`;
+              frame.appendChild(img);
+              popupEl.appendChild(frame);
             }
           } catch { /* invalid URL — skip image */ }
         }
@@ -305,6 +319,15 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           deleteBtn.style.cssText = 'margin-top:6px;padding:3px 10px;background:#e8923a;color:white;border:none;border-radius:12px;font-family:serif;font-size:11px;cursor:pointer';
           deleteBtn.onclick = () => window.__deletePin?.(pin.id, pin.photo_url);
           popupEl.appendChild(deleteBtn);
+        }
+
+        if (role === 'admin' && pin.photo_url) {
+          popupEl.appendChild(document.createElement('br'));
+          const cropBtn = document.createElement('button');
+          cropBtn.textContent = 'Adjust crop';
+          cropBtn.style.cssText = 'margin-top:6px;padding:3px 10px;background:#0d2b3e;color:#eef6fb;border:none;border-radius:12px;font-family:serif;font-size:11px;cursor:pointer';
+          cropBtn.onclick = () => window.__editPinCrop?.(pin.id);
+          popupEl.appendChild(cropBtn);
         }
 
         const marker = L.marker([pin.lat, pin.lng], { icon, pane: 'pins' });
@@ -639,6 +662,29 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      {cropPinId && (() => {
+        const pin = pins.find((item) => item.id === cropPinId && item.photo_url);
+        if (!pin?.photo_url) return null;
+        return (
+          <PinCropEditor
+            pin={{
+              id: pin.id,
+              photo_url: pin.photo_url,
+              caption: pin.caption,
+              photo_crop_x: pin.photo_crop_x,
+              photo_crop_y: pin.photo_crop_y,
+              photo_crop_zoom: pin.photo_crop_zoom,
+            }}
+            onClose={() => setCropPinId(null)}
+            onSaved={(crop) => {
+              setPins((current) => current.map((item) => item.id === pin.id
+                ? { ...item, photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom }
+                : item));
+              setCropPinId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

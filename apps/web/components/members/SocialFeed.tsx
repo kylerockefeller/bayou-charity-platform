@@ -5,6 +5,8 @@ import { createClient } from '@bayou/supabase';
 import Image from 'next/image';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import { MemberLoadError } from '@/lib/member-session';
+import { isMissingCropColumn, normalizePinCrop, pinCropStyle, PIN_PHOTO_ASPECT } from '@/lib/pin-crop';
+import { PinCropEditor } from '@/components/members/PinCropEditor';
 import { removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 import { backfillArchived } from '@/lib/backfill';
 
@@ -14,6 +16,9 @@ type Pin = {
   id: string;
   user_id: string;
   photo_url: string | null;
+  photo_crop_x?: number | null;
+  photo_crop_y?: number | null;
+  photo_crop_zoom?: number | null;
   lat: number;
   lng: number;
   location_name: string | null;
@@ -46,19 +51,30 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
   const [locationName, setLocationName] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posting, setPosting] = useState(false);
-  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const [expandedPhoto, setExpandedPhoto] = useState<Pin | null>(null);
+  const [cropPin, setCropPin] = useState<Pin | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
     // No `.is('archived_at', null)` here — the never-empty rule (lib/backfill.ts)
     // needs archived rows so a quiet season still renders a feed.
-    const { data: pinsData, error: pinsError } = await supabase
+    const baseColumns = 'id, user_id, photo_url, lat, lng, location_name, caption, species, created_at, catch_date, archived_at, profiles(display_name, avatar_url)';
+    const withCrop = await supabase
       .from('pins')
-      .select('id, user_id, photo_url, lat, lng, location_name, caption, species, created_at, catch_date, archived_at, profiles(display_name, avatar_url)')
+      .select(`${baseColumns}, photo_crop_x, photo_crop_y, photo_crop_zoom`)
       .eq('flagged', false)
       .order('created_at', { ascending: false })
       .limit(50);
+    const pinsResult = withCrop.error && isMissingCropColumn(withCrop.error)
+      ? await supabase
+        .from('pins')
+        .select(baseColumns)
+        .eq('flagged', false)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      : withCrop;
+    const { data: pinsData, error: pinsError } = pinsResult;
 
     if (pinsError) {
       setLoadError('Could not load posts. This is not an empty feed.');
@@ -294,10 +310,17 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
             {pin.photo_url && (
               <div
                 className="relative w-full cursor-pointer overflow-hidden"
-                style={{ height: '280px' }}
-                onClick={() => setExpandedPhoto(pin.photo_url!)}
+                style={{ aspectRatio: PIN_PHOTO_ASPECT }}
+                onClick={() => setExpandedPhoto(pin)}
               >
-                <Image src={pin.photo_url} alt={pin.caption ?? 'catch photo'} fill className="object-cover" sizes="(max-width: 768px) 100vw, 600px" />
+                <Image
+                  src={pin.photo_url}
+                  alt={pin.caption ?? 'catch photo'}
+                  fill
+                  className="object-cover"
+                  style={pinCropStyle(normalizePinCrop(pin))}
+                  sizes="(max-width: 768px) 100vw, 600px"
+                />
               </div>
             )}
 
@@ -475,23 +498,37 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
       </div>
     )}
 
-    {expandedPhoto && (
+    {expandedPhoto?.photo_url && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 cursor-pointer p-4"
         onClick={() => setExpandedPhoto(null)}
       >
         <div
-          className="relative w-full max-w-3xl h-[80vh]"
+          className="relative w-full max-w-3xl overflow-hidden rounded-xl"
+          style={{ aspectRatio: PIN_PHOTO_ASPECT }}
           onClick={e => e.stopPropagation()}
         >
           <Image
-            src={expandedPhoto}
+            src={expandedPhoto.photo_url}
             alt="Expanded catch photo"
             fill
-            className="object-contain rounded-xl"
+            className="object-cover"
+            style={pinCropStyle(normalizePinCrop(expandedPhoto))}
             sizes="(max-width: 768px) 100vw, 768px"
           />
         </div>
+        {role === 'admin' && (
+          <button
+            type="button"
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-cream text-green-deep font-serif text-sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              setCropPin(expandedPhoto);
+            }}
+          >
+            Adjust crop
+          </button>
+        )}
         <button
           className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full w-9 h-9 flex items-center justify-center text-lg font-bold leading-none"
           onClick={() => setExpandedPhoto(null)}
@@ -500,6 +537,28 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
           ×
         </button>
       </div>
+    )}
+    {cropPin?.photo_url && (
+      <PinCropEditor
+        pin={{
+          id: cropPin.id,
+          photo_url: cropPin.photo_url,
+          caption: cropPin.caption,
+          photo_crop_x: cropPin.photo_crop_x,
+          photo_crop_y: cropPin.photo_crop_y,
+          photo_crop_zoom: cropPin.photo_crop_zoom,
+        }}
+        onClose={() => setCropPin(null)}
+        onSaved={(crop) => {
+          setPins((current) => current.map((item) => item.id === cropPin.id
+            ? { ...item, photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom }
+            : item));
+          setExpandedPhoto((current) => current && current.id === cropPin.id
+            ? { ...current, photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom }
+            : current);
+          setCropPin(null);
+        }}
+      />
     )}
     </>
   );

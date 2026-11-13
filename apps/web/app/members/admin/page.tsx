@@ -63,5 +63,12 @@ export default function AdminPage() {
     );
   }
 
-  return <AdminPanel adminId={adminId} />;
+  return (
+    <div className="space-y-4">
+      <p className="font-serif text-sm">
+        <a href="/members/admin/pin-crops" className="text-amber hover:underline">Adjust pin photo crops</a>
+      </p>
+      <AdminPanel adminId={adminId} />
+    </div>
+  );
 }
