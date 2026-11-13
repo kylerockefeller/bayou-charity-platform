@@ -31,7 +31,7 @@ type Reaction = {
   member_id: string;
 };
 
-type ReactionCounts = Record<string, { likes: number; same_spot: number }>;
+type ReactionCounts = Record<string, { likes: number; same_spot: number; liked: boolean; spotted: boolean }>;
 
 export default function SocialFeed({ userId, role }: { userId: string; role: string }) {
   const supabase = useMemo(() => createClient(), []);
@@ -79,24 +79,47 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
 
       const counts: ReactionCounts = {};
       for (const r of (rxData ?? []) as Reaction[]) {
-        if (!counts[r.target_id]) counts[r.target_id] = { likes: 0, same_spot: 0 };
-        if (r.emoji === '👍') counts[r.target_id].likes++;
-        if (r.emoji === '🎣') counts[r.target_id].same_spot++;
+        if (!counts[r.target_id]) counts[r.target_id] = { likes: 0, same_spot: 0, liked: false, spotted: false };
+        if (r.emoji === '👍') {
+          counts[r.target_id].likes++;
+          if (r.member_id === userId) counts[r.target_id].liked = true;
+        }
+        if (r.emoji === '🎣') {
+          counts[r.target_id].same_spot++;
+          if (r.member_id === userId) counts[r.target_id].spotted = true;
+        }
       }
       setReactions(counts);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, userId]);
 
   useEffect(() => { loadFeed(); }, [loadFeed]);
 
   const handleReact = useCallback(async (pinId: string, emoji: string) => {
-    await supabase.from('reactions').upsert(
+    const current = reactions[pinId] ?? { likes: 0, same_spot: 0, liked: false, spotted: false };
+    if (emoji === '👍' && current.liked) return;
+    if (emoji === '🎣' && current.spotted) return;
+
+    const { error } = await supabase.from('reactions').upsert(
       { target_id: pinId, emoji, member_id: userId, target_type: 'pin' },
       { onConflict: 'member_id,target_type,target_id,emoji' }
     );
-    await loadFeed();
-  }, [userId, loadFeed]);
+    if (error) {
+      alert('Could not save that reaction.');
+      return;
+    }
+    setReactions((prev) => {
+      const row = prev[pinId] ?? { likes: 0, same_spot: 0, liked: false, spotted: false };
+      if (emoji === '👍') {
+        return { ...prev, [pinId]: { ...row, likes: row.likes + 1, liked: true } };
+      }
+      if (emoji === '🎣') {
+        return { ...prev, [pinId]: { ...row, same_spot: row.same_spot + 1, spotted: true } };
+      }
+      return prev;
+    });
+  }, [userId, reactions, supabase]);
 
   const handlePost = useCallback(async () => {
     if (!caption.trim()) return;
