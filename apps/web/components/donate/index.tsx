@@ -157,8 +157,8 @@ function InKindSection() {
             kyle.rockefeller@bayoucharity.org
           </a>
           {' '}·{' '}
-          <a href="tel:5045070560" className="text-amber hover:underline">
-            504-507-0560
+          <a href="tel:+15044745178" className="text-amber hover:underline">
+            504-474-5178
           </a>
         </p>
       </div>
