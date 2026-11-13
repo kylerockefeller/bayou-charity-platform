@@ -5,10 +5,17 @@
 // it in one place left the others at 5 MB — which is why the cap "kept coming
 // back." Import from here so there is one value to change.
 //
-// Server side: the pin-photos and avatars Supabase buckets are set to 10 MB; the
-// gallery buckets inherit the project default. Keep this at or below those.
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
-export const MAX_UPLOAD_LABEL = '10 MB';
+// The browser uploads straight to Supabase Storage. This cap does not pass
+// through the Cloudflare Worker or a Next.js server action.
+//
+// 25 MB covers full-resolution smartphone JPEGs that exceed 10 MB, and it
+// stays under Supabase's 50 MB Free-plan global maximum. pin-photos and
+// avatars were set to 10 MB in the Supabase dashboard (not in this repo).
+// Those bucket limits still have to be raised there, or Storage rejects the
+// file after this check passes. Gallery buckets inherit the project global
+// limit.
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
+export const MAX_UPLOAD_LABEL = '25 MB';
 
 // Accepted image types — the same list everywhere a photo can be picked.
 // This was previously five hand-copied `accept="image/jpeg,..."` literals (and

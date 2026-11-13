@@ -1,11 +1,12 @@
 'use client';
 
 // UploadForm — Client Component
-// Auth-gated photo upload to Supabase gallery-pending bucket (≤10 MB)
+// Auth-gated photo upload to Supabase gallery-pending bucket.
+// Size cap: MAX_UPLOAD_BYTES in lib/uploads.ts.
 
 import { useState, useRef, type ChangeEvent, type FormEvent } from 'react';
 import { createClient } from '@bayou/supabase';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, MAX_UPLOAD_LABEL, validateUploadFile } from '@/lib/uploads';
 import { GALLERY_PENDING_BUCKET } from '@/lib/gallery';
 
 interface UploadFormProps {
@@ -87,7 +88,7 @@ export default function UploadForm({ userId }: UploadFormProps) {
         Upload a Photo
       </h3>
       <p className="font-serif text-sm text-text-mid dark:text-cream/70">
-        Share your memories with the BFF community. Max 10 MB. Photos go to
+        Share your memories with the BFF community. Max {MAX_UPLOAD_LABEL}. Photos go to
         an admin review queue before publishing.
       </p>
 
