@@ -36,6 +36,19 @@ export function galleryPhotoUrl(storagePath: string, status: string): string {
   return `${STORAGE_PUBLIC_BASE}/${galleryBucketForStatus(status)}/${storagePath}`;
 }
 
+// gallery-pending is private. Public URLs 400. Callers that render a
+// pending or rejected thumbnail must use a signed URL instead.
+export async function gallerySignedUrl(
+  supabase: SupabaseClient,
+  storagePath: string,
+): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from(GALLERY_PENDING_BUCKET)
+    .createSignedUrl(storagePath, 60 * 60);
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
+
 // Copies a photo's object into gallery-public ahead of the status flip to
 // 'approved'. EVERY approve path must call this before updating the row —
 // there are two admin approve surfaces (AdminGalleryManager and the
