@@ -5,8 +5,9 @@ import { createClient } from '@bayou/supabase';
 import Image from 'next/image';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import { MemberLoadError } from '@/lib/member-session';
-import { isMissingCropColumn, normalizePinCrop, pinCropStyle } from '@/lib/pin-crop';
-import { PinCropEditor } from '@/components/members/PinCropEditor';
+import { isMissingCropColumn, normalizePinCrop } from '@/lib/pin-crop';
+import { optimizedImageSrc } from '@/lib/images';
+import { CroppedPinPhoto, PinCropEditor } from '@/components/members/PinCropEditor';
 import { removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 import { backfillArchived } from '@/lib/backfill';
 
@@ -312,13 +313,10 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
                 className="relative aspect-[4/3] w-full cursor-pointer overflow-hidden"
                 onClick={() => setExpandedPhoto(pin)}
               >
-                <Image
-                  src={pin.photo_url}
+                <CroppedPinPhoto
+                  src={optimizedImageSrc(pin.photo_url, 1200)}
                   alt={pin.caption ?? 'catch photo'}
-                  fill
-                  className="object-cover object-center"
-                  style={pinCropStyle(normalizePinCrop(pin))}
-                  sizes="(max-width: 768px) 100vw, 576px"
+                  crop={normalizePinCrop(pin)}
                 />
               </div>
             )}
@@ -506,13 +504,10 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
           className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-xl"
           onClick={e => e.stopPropagation()}
         >
-          <Image
-            src={expandedPhoto.photo_url}
+          <CroppedPinPhoto
+            src={optimizedImageSrc(expandedPhoto.photo_url, 1200)}
             alt="Expanded catch photo"
-            fill
-            className="object-cover object-center"
-            style={pinCropStyle(normalizePinCrop(expandedPhoto))}
-            sizes="(max-width: 768px) 100vw, 672px"
+            crop={normalizePinCrop(expandedPhoto)}
           />
         </div>
         {role === 'admin' && (

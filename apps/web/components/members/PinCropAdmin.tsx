@@ -1,10 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { createClient } from '@bayou/supabase';
-import { PinCropEditor } from '@/components/members/PinCropEditor';
-import { isMissingCropColumn, normalizePinCrop, PIN_PHOTO_ASPECT, pinCropStyle, type PinCrop } from '@/lib/pin-crop';
+import { CroppedPinPhoto, PinCropEditor } from '@/components/members/PinCropEditor';
+import { isMissingCropColumn, normalizePinCrop, PIN_PHOTO_ASPECT, type PinCrop } from '@/lib/pin-crop';
 import { MemberLoadError } from '@/lib/member-session';
 
 type CropRow = {
@@ -83,7 +82,7 @@ export function PinCropAdmin() {
             <li key={row.id} className="space-y-2">
               <div className="relative overflow-hidden rounded-xl border border-gold/20" style={{ aspectRatio: PIN_PHOTO_ASPECT }}>
                 {row.photo_url && (
-                  <Image src={row.photo_url} alt={row.caption ?? 'Pin photo'} fill className="object-cover" style={pinCropStyle(normalizePinCrop(row))} sizes="(max-width: 768px) 100vw, 360px" />
+                  <CroppedPinPhoto src={row.photo_url} alt={row.caption ?? 'Pin photo'} crop={normalizePinCrop(row)} />
                 )}
               </div>
               <div className="flex items-center justify-between gap-2">

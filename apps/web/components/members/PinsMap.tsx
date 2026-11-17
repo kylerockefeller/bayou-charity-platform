@@ -8,7 +8,7 @@ import type { Database } from '@bayou/supabase/types';
 import { colors } from '@bayou/ui/tokens';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import { optimizedImageSrc } from '@/lib/images';
-import { normalizePinCrop } from '@/lib/pin-crop';
+import { normalizePinCrop, placePinImage } from '@/lib/pin-crop';
 import { PinCropEditor } from '@/components/members/PinCropEditor';
 import { removePinPhotoByUrl, removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 
@@ -315,11 +315,13 @@ export function PinsMap({ userId, role }: PinsMapProps) {
             if (url.protocol === 'https:') {
               const crop = normalizePinCrop(pin);
               const frame = document.createElement('div');
-              frame.style.cssText = 'width:100%;aspect-ratio:2/1;overflow:hidden;border-radius:8px;margin-bottom:6px;';
+              frame.style.cssText = 'position:relative;width:100%;aspect-ratio:2/1;overflow:hidden;border-radius:8px;margin-bottom:6px;';
               const img = document.createElement('img');
-              img.src = optimizedImageSrc(pin.photo_url, 640);
               img.alt = pin.caption ?? 'Catch photo';
-              img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${crop.x}% ${crop.y}%;transform:scale(${crop.zoom});transform-origin:${crop.x}% ${crop.y}%;`;
+              const place = () => placePinImage(img, frame, crop);
+              img.addEventListener('load', place);
+              img.src = optimizedImageSrc(pin.photo_url, 640);
+              if (img.complete) place();
               frame.appendChild(img);
               popupEl.appendChild(frame);
             }
@@ -359,6 +361,11 @@ export function PinsMap({ userId, role }: PinsMapProps) {
 
         const marker = L.marker([pin.lat, pin.lng], { icon, pane: 'pins' });
         marker.bindPopup(popupEl);
+        if (pin.photo_url) marker.on('popupopen', () => {
+          const photo = popupEl.querySelector('img');
+          const photoFrame = photo?.parentElement;
+          if (photo && photoFrame) placePinImage(photo, photoFrame, normalizePinCrop(pin));
+        });
         pinsGroup.addLayer(marker);
       });
     });
