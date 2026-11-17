@@ -9,6 +9,7 @@
  * Token dependency: Requires Phase 0 tailwind.config.ts tokens.
  */
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { Facebook, Twitter, Instagram } from 'lucide-react'
 import { PAYMENT_METHODS } from '@/lib/payments'
@@ -64,20 +65,16 @@ export default function Footer() {
 
           {/* ── Column 1: Brand ──────────────────────────────────────── */}
           <div>
-            <div className="mb-4">
-              <span
-                className="text-xs tracking-widest uppercase"
-                style={{ fontFamily: "'Caveat', cursive", color: '#c9a84c', letterSpacing: '3px' }}
-              >
-                Bayou Charity
-              </span>
-              <h2
-                className="text-xl font-bold text-white mt-1"
-                style={{ fontFamily: "'Playfair Display', serif" }}
-              >
-                Bayou Family Fishing
-              </h2>
-            </div>
+            <h2 className="mb-4">
+              <Image
+                src="/brand/bayou-charity-logo-light-text.png"
+                alt="Bayou Charity"
+                width={1600}
+                height={448}
+                sizes="180px"
+                className="h-11 w-auto"
+              />
+            </h2>
 
             <p
               className="text-sm leading-relaxed mb-6"

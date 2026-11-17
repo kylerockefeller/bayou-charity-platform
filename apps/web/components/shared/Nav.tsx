@@ -93,23 +93,18 @@ export default function Nav() {
           {/* Logo ──────────────────────────────────────────────────── */}
           <Link
             href="/"
-            className="flex items-center gap-2 shrink-0 group"
+            className="flex items-center shrink-0"
             aria-label="Bayou Charity — home"
           >
             <Image
-              src='/logo.jpg'
-              alt='Bayou Family Fishing'
-              width={32}
-              height={32}
-              className='rounded-full object-cover shadow-[0_2px_8px_rgba(232,146,58,0.45)]'
+              src="/brand/bayou-charity-logo-light-text.png"
+              alt="Bayou Charity"
+              width={1600}
+              height={448}
               priority
+              sizes="(max-width: 1024px) 128px, 160px"
+              className="h-8 w-auto lg:h-10"
             />
-            <span
-              className="font-bold text-white text-[1rem] leading-none hidden sm:block"
-              style={{ fontFamily: "'Playfair Display', serif" }}
-            >
-              Bayou Charity
-            </span>
           </Link>
 
           {/* Desktop links ─────────────────────────────────────────── */}
@@ -125,7 +120,7 @@ export default function Nav() {
                     href={href}
                     aria-current={active ? 'page' : undefined}
                     className={[
-                      'text-[0.82rem] font-medium px-3 py-1.5 rounded-full',
+                      'text-[0.82rem] font-medium px-2 lg:px-3 py-1.5 rounded-full',
                       'transition-all duration-200 motion-reduce:transition-none',
                       active
                         ? 'text-green-deep font-semibold bg-gold shadow-sm'

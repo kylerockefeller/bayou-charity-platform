@@ -21,5 +21,26 @@
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://osiramhnynhwmlfyuqcp.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_yS9pPiw1F7QuxGcWVAyLXw_oZMI9HCI"
+  },
+  // Preview only. Deploy with `opennextjs-cloudflare deploy --env staging`.
+  // No routes or custom domains — workers.dev only. Bindings are not inherited.
+  "env": {
+    "staging": {
+      "name": "bayou-charity-web-staging",
+      "workers_dev": true,
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "bayou-charity-web-staging"
+        }
+      ],
+      "images": {
+        "binding": "IMAGES"
+      },
+      "vars": {
+        "NEXT_PUBLIC_SUPABASE_URL": "https://osiramhnynhwmlfyuqcp.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_yS9pPiw1F7QuxGcWVAyLXw_oZMI9HCI"
+      }
+    }
   }
 }

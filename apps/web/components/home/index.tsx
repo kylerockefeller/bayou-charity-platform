@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Home — Bayou Family Fishing
+ * Home — Bayou Charity
  * CSS animations replace framer-motion to keep it off the home page critical path.
  */
 
@@ -55,22 +55,16 @@ function Hero() {
       className="relative h-screen min-h-[600px] flex items-center justify-center"
     >
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-16">
-        <span
-          className="anim-letter block text-xs uppercase tracking-[0.4em] mb-4 text-gold"
-          style={{ fontFamily: "'Caveat', cursive", fontSize: '1rem' }}
-        >
-          Bayou Charity
-        </span>
-
-        <h1
-          className="anim-fade-up text-5xl md:text-7xl font-bold text-white mb-6 leading-tight"
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            textShadow: '0 2px 16px rgba(13,43,62,0.7)',
-            animationDelay: '0.2s',
-          }}
-        >
-          Bayou Family Fishing
+        <h1 className="anim-fade-up mb-6" style={{ animationDelay: '0.2s' }}>
+          <Image
+            src="/brand/bayou-charity-logo-light-text.png"
+            alt="Bayou Charity"
+            width={1600}
+            height={448}
+            priority
+            sizes="(max-width: 479px) 280px, (max-width: 767px) 400px, 520px"
+            className="mx-auto h-auto w-full max-w-[280px] min-[480px]:max-w-[400px] md:max-w-[520px] drop-shadow-[0_8px_28px_rgba(0,0,0,0.55)]"
+          />
         </h1>
 
         <p

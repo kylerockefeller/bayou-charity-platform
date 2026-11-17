@@ -1,0 +1,56 @@
+name: Web Deploy Staging (CF Workers)
+
+on:
+  push:
+    branches:
+      - 'staging/**'
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/web-deploy.yml'
+      - '.github/workflows/web-deploy-staging.yml'
+      - '.npmrc'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    name: Type-check → Build → Deploy staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check (web)
+        run: npm run type-check --workspace=apps/web
+
+      - name: Build & Deploy via OpenNext
+        run: npm run deploy --workspace=apps/web -- --env staging
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: bayou-charity
+          SENTRY_PROJECT: bayou-web
+
+      # After the Worker exists. `secret put` publishes a new version of this
+      # script only; --name keeps it off bayou-charity-web.
+      - name: Set Supabase service role secret
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name bayou-charity-web-staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
