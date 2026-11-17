@@ -5,7 +5,7 @@ import { createClient } from '@bayou/supabase';
 import Image from 'next/image';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import { MemberLoadError } from '@/lib/member-session';
-import { isMissingCropColumn, normalizePinCrop, pinCropStyle, PIN_PHOTO_ASPECT } from '@/lib/pin-crop';
+import { isMissingCropColumn, normalizePinCrop, pinCropStyle } from '@/lib/pin-crop';
 import { PinCropEditor } from '@/components/members/PinCropEditor';
 import { removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 import { backfillArchived } from '@/lib/backfill';
@@ -240,7 +240,7 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
   }
 
   if (loading) return (
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,36rem)_320px] justify-center gap-6">
       <div className="space-y-4">
         {[1,2,3].map(i => (
           <div key={i} className="bg-white dark:bg-green-deep/30 rounded-2xl border border-green-water/20 shadow-sm overflow-hidden animate-pulse">
@@ -251,7 +251,7 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
                 <div className="h-2.5 w-24 rounded bg-green-water/10" />
               </div>
             </div>
-            <div className="h-36 bg-green-water/10 mx-4 mb-4 rounded-xl" />
+            <div className="aspect-[4/3] w-full bg-green-water/10" />
             <div className="h-3 w-3/4 bg-green-water/10 rounded mx-4 mb-4" />
           </div>
         ))}
@@ -271,7 +271,7 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
 
   return (
     <>
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,36rem)_320px] justify-center gap-6">
       {/* Feed — Left */}
       <div className="space-y-6 min-w-0">
         {pins.length === 0 && (
@@ -309,17 +309,16 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
             {/* Photo */}
             {pin.photo_url && (
               <div
-                className="relative w-full cursor-pointer overflow-hidden"
-                style={{ aspectRatio: PIN_PHOTO_ASPECT }}
+                className="relative aspect-[4/3] w-full cursor-pointer overflow-hidden"
                 onClick={() => setExpandedPhoto(pin)}
               >
                 <Image
                   src={pin.photo_url}
                   alt={pin.caption ?? 'catch photo'}
                   fill
-                  className="object-cover"
+                  className="object-cover object-center"
                   style={pinCropStyle(normalizePinCrop(pin))}
-                  sizes="(max-width: 768px) 100vw, 600px"
+                  sizes="(max-width: 768px) 100vw, 576px"
                 />
               </div>
             )}
@@ -504,17 +503,16 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
         onClick={() => setExpandedPhoto(null)}
       >
         <div
-          className="relative w-full max-w-3xl overflow-hidden rounded-xl"
-          style={{ aspectRatio: PIN_PHOTO_ASPECT }}
+          className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-xl"
           onClick={e => e.stopPropagation()}
         >
           <Image
             src={expandedPhoto.photo_url}
             alt="Expanded catch photo"
             fill
-            className="object-cover"
+            className="object-cover object-center"
             style={pinCropStyle(normalizePinCrop(expandedPhoto))}
-            sizes="(max-width: 768px) 100vw, 768px"
+            sizes="(max-width: 768px) 100vw, 672px"
           />
         </div>
         {role === 'admin' && (
