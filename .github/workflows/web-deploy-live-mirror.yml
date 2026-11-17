@@ -35,24 +35,15 @@ jobs:
 
       - name: Refuse any worker other than the live mirror
         run: |
-          python3 - << 'PY'
-          import json, pathlib, re, sys
-          text = pathlib.Path("apps/web/wrangler.jsonc").read_text()
-          text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
-          text = re.sub(r"//.*", "", text)
-          cfg = json.loads(text)
-          if cfg.get("name") != "bayou-charity-web-live":
-              sys.exit(f"refusing to deploy worker {cfg.get('name')!r}")
-          for svc in cfg.get("services") or []:
-              if svc.get("service") != "bayou-charity-web-live":
-                  sys.exit(f"refusing service binding {svc.get('service')!r}")
-          for key in ("routes", "route", "custom_domain"):
-              if cfg.get(key):
-                  sys.exit(f"refusing wrangler {key}")
-          if "bayoucharity.org" in json.dumps(cfg):
-              sys.exit("refusing zone or custom domain reference")
-          print("worker name ok: bayou-charity-web-live, no routes")
-          PY
+          set -euo pipefail
+          cfg=apps/web/wrangler.jsonc
+          grep -Eq '^[[:space:]]*"name": "bayou-charity-web-live",[[:space:]]*$' "$cfg"
+          grep -Eq '^[[:space:]]*"service": "bayou-charity-web-live"[[:space:]]*$' "$cfg"
+          if grep -E '"routes"|"route"|"custom_domain"|bayoucharity\.org' "$cfg"; then
+            echo "refusing routes, custom domain, or zone reference"
+            exit 1
+          fi
+          echo "worker name ok: bayou-charity-web-live, no routes"
 
       - name: Build & Deploy via OpenNext
         run: |
