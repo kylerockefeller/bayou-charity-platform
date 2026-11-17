@@ -19,6 +19,10 @@ export default function SignInPage() {
     });
   }
 
+  // Hidden until Apple is turned on in Supabase and Apple Developer.
+  // Set NEXT_PUBLIC_APPLE_SIGN_IN=true to show the button again.
+  const appleSignInEnabled = process.env.NEXT_PUBLIC_APPLE_SIGN_IN === 'true';
+
   async function signInWithApple() {
     await supabase.auth.signInWithOAuth({
       provider: 'apple',
@@ -49,12 +53,14 @@ export default function SignInPage() {
           >
             Continue with Facebook
           </button>
-          <button
-            onClick={signInWithApple}
-            className="w-full bg-green-deep hover:bg-green-deep/90 dark:bg-white dark:text-green-deep text-white font-serif py-3 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] border border-green-water dark:border-transparent"
-          >
-            Continue with Apple
-          </button>
+          {appleSignInEnabled && (
+            <button
+              onClick={signInWithApple}
+              className="w-full bg-green-deep hover:bg-green-deep/90 dark:bg-white dark:text-green-deep text-white font-serif py-3 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] border border-green-water dark:border-transparent"
+            >
+              Continue with Apple
+            </button>
+          )}
         </div>
 
         <div className="pt-2 text-center">

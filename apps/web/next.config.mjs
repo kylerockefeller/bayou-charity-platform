@@ -27,6 +27,9 @@ const nextConfig = {
     return config;
   },
   images: {
+    // Drop the default 3840 width so full-bleed backgrounds are not requested
+    // at 3840px. 2048 covers a retina laptop.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     remotePatterns: [
       {
         protocol: 'https',
@@ -36,9 +39,9 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'ezndphlcgeonbfgelzjd.supabase.co',
+        hostname: 'osiramhnynhwmlfyuqcp.supabase.co',
         port: '',
-        pathname: '/storage/v1/object/public/**',
+        pathname: '/storage/v1/object/sign/**',
       },
       {
         protocol: 'https',
@@ -59,6 +62,16 @@ const nextConfig = {
     ],
   },
   transpilePackages: ['@bayou/ui', '@bayou/supabase'],
+  async headers() {
+    return [
+      {
+        source: '/_next/image',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
+    ];
+  },
   // Legacy static-site paths from before the Next.js rebuild. These 404'd silently
   // for months: Meta's app config still pointed at /privacy.html, so Meta could not
   // find a privacy policy and DISABLED the Facebook app — which took Facebook sign-in

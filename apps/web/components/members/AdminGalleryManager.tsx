@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import Image from 'next/image';
 import { createClient } from '@bayou/supabase';
+import { GalleryThumb } from '@/components/gallery/GalleryThumb';
 import type { Database } from '@bayou/supabase/types';
 import { deleteGalleryPhoto } from '@/app/actions/gallery';
-import { copyPendingToPublic, galleryPhotoUrl, removePublicCopy } from '@/lib/gallery';
+import { copyPendingToPublic, removePublicCopy } from '@/lib/gallery';
 
 type GalleryEvent = Database['public']['Tables']['gallery_events']['Row'];
 type GallerySubmission = {
@@ -209,12 +209,11 @@ export function AdminGalleryManager() {
             >
               {/* Thumbnail with hover overlay */}
               <div className="aspect-square relative overflow-hidden group">
-                <Image
-                  src={galleryPhotoUrl(photo.storage_path, photo.status)}
+                <GalleryThumb
+                  storagePath={photo.storage_path}
+                  status={photo.status}
                   alt={photo.caption ?? 'Gallery photo'}
-                  fill
                   sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  className="object-cover"
                 />
                 {/* Status badge */}
                 {photo.status !== 'approved' && (

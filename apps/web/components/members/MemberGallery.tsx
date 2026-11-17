@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
+import { GalleryThumb } from '@/components/gallery/GalleryThumb';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import {
   GALLERY_PENDING_BUCKET,
   copyPendingToPublic,
-  galleryPhotoUrl,
 } from '@/lib/gallery';
 
 type GallerySubmission = Database['public']['Tables']['gallery_submissions']['Row'] & {
@@ -72,16 +71,17 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
     loadData();
   }, [loadData]);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const validationError = validateUploadFile(f);
-    if (validationError) {
-      setError(validationError);
+    const prepared = await prepareUploadFile(f);
+    if (prepared.error) {
+      setError(prepared.error);
+      setFile(null);
       return;
     }
     setError(null);
-    setFile(f);
+    setFile(prepared.file);
   }
 
   async function handleUpload() {
@@ -89,7 +89,7 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
     setUploading(true);
     setError(null);
 
-    const ext = file.name.split('.').pop();
+    const ext = file.type === 'image/jpeg' ? 'jpg' : (file.name.split('.').pop() ?? 'jpg');
     const path = `${userId}/${Date.now()}.${ext}`;
 
     const { error: storageError } = await supabase.storage
@@ -111,6 +111,7 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
     });
 
     if (dbError) {
+      await supabase.storage.from(GALLERY_PENDING_BUCKET).remove([path]);
       setError(dbError.message);
     } else {
       setFile(null);
@@ -196,11 +197,10 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
                   className="glass-card overflow-hidden"
                 >
                   <div className="relative aspect-video bg-green-deep/10">
-                    <Image
-                      src={galleryPhotoUrl(sub.storage_path, sub.status ?? 'pending')}
+                    <GalleryThumb
+                      storagePath={sub.storage_path}
+                      status={sub.status ?? 'pending'}
                       alt={sub.caption ?? 'Gallery submission'}
-                      fill
-                      className="object-cover"
                       sizes="(max-width: 768px) 100vw, 50vw"
                     />
                   </div>
@@ -289,7 +289,12 @@ function AdminGalleryPanel({
       {pending.map((sub) => (
         <div key={sub.id} className="flex gap-3 items-start border-t border-gold/10 pt-3">
           <div className="relative w-20 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-green-deep/10">
-            <Image src={galleryPhotoUrl(sub.storage_path, sub.status ?? 'pending')} alt={sub.caption ?? ''} fill className="object-cover" sizes="80px" />
+            <GalleryThumb
+              storagePath={sub.storage_path}
+              status={sub.status ?? 'pending'}
+              alt={sub.caption ?? ''}
+              sizes="80px"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-serif text-xs text-text-mid dark:text-cream/60">

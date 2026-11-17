@@ -104,7 +104,7 @@ export default function PageBackground({ page }: Props) {
               src={src}
               alt=""
               fill
-              sizes="100vw"
+              sizes="(min-width: 1920px) 1920px, 100vw"
               style={{ objectFit: 'cover' }}
               priority={i === 0}
               quality={80}

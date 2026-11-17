@@ -3,7 +3,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { createClient } from '@bayou/supabase';
 import Image from 'next/image';
-import { ACCEPTED_IMAGE_ACCEPT, validateUploadFile } from '@/lib/uploads';
+import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
+import { MemberLoadError } from '@/lib/member-session';
+import { isMissingCropColumn, normalizePinCrop, pinCropStyle, PIN_PHOTO_ASPECT } from '@/lib/pin-crop';
+import { PinCropEditor } from '@/components/members/PinCropEditor';
+import { removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 import { backfillArchived } from '@/lib/backfill';
 
 const WeatherWidget = React.lazy(() => import('./community/WeatherWidget'));
@@ -12,6 +16,9 @@ type Pin = {
   id: string;
   user_id: string;
   photo_url: string | null;
+  photo_crop_x?: number | null;
+  photo_crop_y?: number | null;
+  photo_crop_zoom?: number | null;
   lat: number;
   lng: number;
   location_name: string | null;
@@ -29,13 +36,14 @@ type Reaction = {
   member_id: string;
 };
 
-type ReactionCounts = Record<string, { likes: number; same_spot: number }>;
+type ReactionCounts = Record<string, { likes: number; same_spot: number; liked: boolean; spotted: boolean }>;
 
 export default function SocialFeed({ userId, role }: { userId: string; role: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [pins, setPins] = useState<Pin[]>([]);
   const [reactions, setReactions] = useState<ReactionCounts>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Post form state
   const [caption, setCaption] = useState('');
@@ -43,19 +51,37 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
   const [locationName, setLocationName] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [posting, setPosting] = useState(false);
-  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const [expandedPhoto, setExpandedPhoto] = useState<Pin | null>(null);
+  const [cropPin, setCropPin] = useState<Pin | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
     // No `.is('archived_at', null)` here — the never-empty rule (lib/backfill.ts)
     // needs archived rows so a quiet season still renders a feed.
-    const { data: pinsData } = await supabase
+    const baseColumns = 'id, user_id, photo_url, lat, lng, location_name, caption, species, created_at, catch_date, archived_at, profiles(display_name, avatar_url)';
+    const withCrop = await supabase
       .from('pins')
-      .select('id, user_id, photo_url, lat, lng, location_name, caption, species, created_at, catch_date, archived_at, profiles(display_name, avatar_url)')
+      .select(`${baseColumns}, photo_crop_x, photo_crop_y, photo_crop_zoom`)
       .eq('flagged', false)
       .order('created_at', { ascending: false })
       .limit(50);
+    const pinsResult = withCrop.error && isMissingCropColumn(withCrop.error)
+      ? await supabase
+        .from('pins')
+        .select(baseColumns)
+        .eq('flagged', false)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      : withCrop;
+    const { data: pinsData, error: pinsError } = pinsResult;
+
+    if (pinsError) {
+      setLoadError('Could not load posts. This is not an empty feed.');
+      setLoading(false);
+      return;
+    }
+    setLoadError(null);
 
     const pinList = backfillArchived((pinsData ?? []) as Pin[]);
     setPins(pinList);
@@ -69,58 +95,84 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
 
       const counts: ReactionCounts = {};
       for (const r of (rxData ?? []) as Reaction[]) {
-        if (!counts[r.target_id]) counts[r.target_id] = { likes: 0, same_spot: 0 };
-        if (r.emoji === '👍') counts[r.target_id].likes++;
-        if (r.emoji === '🎣') counts[r.target_id].same_spot++;
+        if (!counts[r.target_id]) counts[r.target_id] = { likes: 0, same_spot: 0, liked: false, spotted: false };
+        if (r.emoji === '👍') {
+          counts[r.target_id].likes++;
+          if (r.member_id === userId) counts[r.target_id].liked = true;
+        }
+        if (r.emoji === '🎣') {
+          counts[r.target_id].same_spot++;
+          if (r.member_id === userId) counts[r.target_id].spotted = true;
+        }
       }
       setReactions(counts);
     }
     setLoading(false);
-  }, []);
+  }, [supabase, userId]);
 
   useEffect(() => { loadFeed(); }, [loadFeed]);
 
   const handleReact = useCallback(async (pinId: string, emoji: string) => {
-    await supabase.from('reactions').upsert(
+    const current = reactions[pinId] ?? { likes: 0, same_spot: 0, liked: false, spotted: false };
+    if (emoji === '👍' && current.liked) return;
+    if (emoji === '🎣' && current.spotted) return;
+
+    const { error } = await supabase.from('reactions').upsert(
       { target_id: pinId, emoji, member_id: userId, target_type: 'pin' },
       { onConflict: 'member_id,target_type,target_id,emoji' }
     );
-    await loadFeed();
-  }, [userId, loadFeed]);
+    if (error) {
+      alert('Could not save that reaction.');
+      return;
+    }
+    setReactions((prev) => {
+      const row = prev[pinId] ?? { likes: 0, same_spot: 0, liked: false, spotted: false };
+      if (emoji === '👍') {
+        return { ...prev, [pinId]: { ...row, likes: row.likes + 1, liked: true } };
+      }
+      if (emoji === '🎣') {
+        return { ...prev, [pinId]: { ...row, same_spot: row.same_spot + 1, spotted: true } };
+      }
+      return prev;
+    });
+  }, [userId, reactions, supabase]);
 
   const handlePost = useCallback(async () => {
     if (!caption.trim()) return;
-    // Shared validator — this path previously checked type but not size, so an
-    // oversized photo only failed after the pin row was already inserted.
-    const photoError = photoFile ? validateUploadFile(photoFile) : null;
-    if (photoError) {
-      alert(photoError);
+    const preparedPhoto = photoFile ? await prepareUploadFile(photoFile) : null;
+    if (preparedPhoto?.error) {
+      alert(preparedPhoto.error);
       return;
     }
     setPosting(true);
 
-    const { data: insertData, error: insertError } = await supabase.from('pins').insert({
+    let uploaded: { path: string; publicUrl: string } | null = null;
+    if (preparedPhoto) {
+      const result = await uploadPinPhoto(supabase, userId, preparedPhoto.file);
+      if ('error' in result) {
+        setPosting(false);
+        alert(result.error);
+        return;
+      }
+      uploaded = result;
+    }
+
+    const { error: insertError } = await supabase.from('pins').insert({
       user_id: userId,
       caption: caption.trim(),
       species: species.trim() || null,
       location_name: locationName.trim() || null,
-      photo_url: null,
+      photo_url: uploaded?.publicUrl ?? null,
       lat: 0,
       lng: 0,
       flagged: false,
-    }).select();
+    });
 
-    if (!insertError && insertData && insertData[0] && photoFile) {
-      const pinId = insertData[0].id;
-      const ext = photoFile.name.split('.').pop();
-      const path = `${userId}/${pinId}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from('pin-photos')
-        .upload(path, photoFile, { upsert: false });
-      if (!upErr) {
-        const { data: { publicUrl } } = supabase.storage.from('pin-photos').getPublicUrl(path);
-        await supabase.from('pins').update({ photo_url: publicUrl }).eq('id', pinId);
-      }
+    if (insertError) {
+      if (uploaded) await removeUploadedPinPhoto(supabase, uploaded.path);
+      setPosting(false);
+      alert(insertError.message);
+      return;
     }
 
     setCaption(''); setSpecies(''); setLocationName(''); setPhotoFile(null);
@@ -128,7 +180,7 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
     await loadFeed();
     setToastMsg('Catch posted!');
     setTimeout(() => setToastMsg(null), 3000);
-  }, [userId, caption, species, locationName, photoFile, loadFeed]);
+  }, [userId, caption, species, locationName, photoFile, loadFeed, supabase]);
 
   // Sidebar data
   const [leaderboard, setLeaderboard] = useState<{ display_name: string; count: number }[]>([]);
@@ -182,6 +234,10 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
     if (days === 1) return 'yesterday';
     return `${days}d ago`;
   };
+
+  if (loadError) {
+    return <MemberLoadError message={loadError} onRetry={() => { void loadFeed(); }} />;
+  }
 
   if (loading) return (
     <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
@@ -254,10 +310,17 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
             {pin.photo_url && (
               <div
                 className="relative w-full cursor-pointer overflow-hidden"
-                style={{ height: '280px' }}
-                onClick={() => setExpandedPhoto(pin.photo_url!)}
+                style={{ aspectRatio: PIN_PHOTO_ASPECT }}
+                onClick={() => setExpandedPhoto(pin)}
               >
-                <Image src={pin.photo_url} alt={pin.caption ?? 'catch photo'} fill className="object-cover" sizes="(max-width: 768px) 100vw, 600px" />
+                <Image
+                  src={pin.photo_url}
+                  alt={pin.caption ?? 'catch photo'}
+                  fill
+                  className="object-cover"
+                  style={pinCropStyle(normalizePinCrop(pin))}
+                  sizes="(max-width: 768px) 100vw, 600px"
+                />
               </div>
             )}
 
@@ -435,18 +498,37 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
       </div>
     )}
 
-    {expandedPhoto && (
+    {expandedPhoto?.photo_url && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 cursor-pointer p-4"
         onClick={() => setExpandedPhoto(null)}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={expandedPhoto}
-          alt="Expanded catch photo"
-          className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl"
+        <div
+          className="relative w-full max-w-3xl overflow-hidden rounded-xl"
+          style={{ aspectRatio: PIN_PHOTO_ASPECT }}
           onClick={e => e.stopPropagation()}
-        />
+        >
+          <Image
+            src={expandedPhoto.photo_url}
+            alt="Expanded catch photo"
+            fill
+            className="object-cover"
+            style={pinCropStyle(normalizePinCrop(expandedPhoto))}
+            sizes="(max-width: 768px) 100vw, 768px"
+          />
+        </div>
+        {role === 'admin' && (
+          <button
+            type="button"
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-cream text-green-deep font-serif text-sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              setCropPin(expandedPhoto);
+            }}
+          >
+            Adjust crop
+          </button>
+        )}
         <button
           className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full w-9 h-9 flex items-center justify-center text-lg font-bold leading-none"
           onClick={() => setExpandedPhoto(null)}
@@ -455,6 +537,28 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
           ×
         </button>
       </div>
+    )}
+    {cropPin?.photo_url && (
+      <PinCropEditor
+        pin={{
+          id: cropPin.id,
+          photo_url: cropPin.photo_url,
+          caption: cropPin.caption,
+          photo_crop_x: cropPin.photo_crop_x,
+          photo_crop_y: cropPin.photo_crop_y,
+          photo_crop_zoom: cropPin.photo_crop_zoom,
+        }}
+        onClose={() => setCropPin(null)}
+        onSaved={(crop) => {
+          setPins((current) => current.map((item) => item.id === cropPin.id
+            ? { ...item, photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom }
+            : item));
+          setExpandedPhoto((current) => current && current.id === cropPin.id
+            ? { ...current, photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom }
+            : current);
+          setCropPin(null);
+        }}
+      />
     )}
     </>
   );

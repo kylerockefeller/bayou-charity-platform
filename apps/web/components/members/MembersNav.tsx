@@ -5,10 +5,12 @@
 // Owns the list of member surfaces and appends the Admin tab only after
 // confirming profiles.role === 'admin' client-side. That check is COSMETIC —
 // real route protection is middleware.ts; do not treat hiding a tab here as
-// securing anything. Trap: a signed-in session whose profiles row is missing
-// gets force-signed-out and bounced to /sign-in (otherwise a deleted profile
-// would browse a half-broken members area). Active-tab matching is by path
-// prefix so nested routes (/members/admin/gallery) keep their tab lit.
+// securing anything. A missing profiles row (query succeeded, zero rows)
+// signs the member out. A failed read does not — that was signing people
+// out on a blip. Middleware already called getUser(), so this uses
+// getSession() and does not refresh the token a second time.
+// Active-tab matching is by path prefix so nested routes
+// (/members/admin/gallery) keep their tab lit.
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -20,6 +22,7 @@ const baseTabs = [
   { href: '/members/feed',      label: '📸 Feed' },
   { href: '/members/community', label: '💬 Community' },
   { href: '/members/map',       label: '🗺️ Map' },
+  { href: '/members/forecast',  label: '🌤️ Forecast' },
   { href: '/members/gallery',   label: '🌊 Gallery' },
   { href: '/members/profile',   label: '🎣 Profile' },
 ];
@@ -29,27 +32,36 @@ const adminTab = { href: '/members/admin', label: '⚙️ Admin' };
 export function MembersNav() {
   const pathname = usePathname();
   const [role, setRole] = useState<'member' | 'guide' | 'admin'>('member');
+  const [profileError, setProfileError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (cancelled || !session) return;
+      const { data, error } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (!data) {
-            supabase.auth.signOut().then(() => {
-              window.location.href = '/sign-in';
-            });
-            return;
-          }
-          if (data.role) setRole(data.role as 'member' | 'guide' | 'admin');
-        });
+        .eq('id', session.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setProfileError(true);
+        return;
+      }
+      setProfileError(false);
+      if (!data) {
+        await supabase.auth.signOut();
+        window.location.href = '/sign-in';
+        return;
+      }
+      if (data.role === 'admin' || data.role === 'guide' || data.role === 'member') {
+        setRole(data.role);
+      }
     });
-  }, []);
+    return () => { cancelled = true; };
+  }, [attempt]);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -90,6 +102,15 @@ export function MembersNav() {
             );
           })}
         </ul>
+        {profileError && (
+          <button
+            type="button"
+            onClick={() => { setProfileError(false); setAttempt((n) => n + 1); }}
+            className="shrink-0 px-3 py-1.5 font-serif text-sm text-amber hover:text-amber/80 transition-colors whitespace-nowrap"
+          >
+            Retry
+          </button>
+        )}
         <button
           onClick={() => { void handleSignOut(); }}
           className="shrink-0 px-3 py-1.5 font-serif text-sm text-amber hover:text-amber/80 transition-colors whitespace-nowrap"

@@ -2,20 +2,30 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@bayou/supabase/middleware';
 
+function hasSupabaseAuthCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some(
+    (cookie) => cookie.name.startsWith('sb-') && cookie.name.includes('auth-token'),
+  );
+}
+
 export async function middleware(request: NextRequest) {
+  // No session cookie means there is nothing to refresh. Skip getUser()
+  // so an anonymous visit does not round-trip to Supabase Auth.
+  if (!hasSupabaseAuthCookie(request)) {
+    return NextResponse.redirect(new URL('/sign-in', request.url));
+  }
+
   const response = NextResponse.next();
   const supabase = createMiddlewareClient(request, response);
 
-  // getUser() validates with Supabase auth server (secure)
-  // getSession() only reads from cookie (spoofable — do not use for auth checks)
+  // getUser() validates with Supabase auth server and refreshes the cookie.
+  // Client pages should use getSession() after this so they do not refresh again.
   const { data: { user }, error } = await supabase.auth.getUser();
 
-  // Unauthenticated → redirect to sign-in
   if (error || !user) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
-  // /members/admin → require admin role
   if (request.nextUrl.pathname.startsWith('/members/admin')) {
     const { data: profile } = await supabase
       .from('profiles')
