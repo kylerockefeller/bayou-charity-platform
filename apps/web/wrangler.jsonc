@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
-  "name": "bayou-charity-web",
+  "name": "bayou-charity-web-live",
   "compatibility_date": "2026-04-04",
   "keep_names": false,
   "compatibility_flags": ["nodejs_compat"],
@@ -12,7 +12,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "bayou-charity-web"
+      "service": "bayou-charity-web-live"
     }
   ],
   "images": {

@@ -1,0 +1,80 @@
+name: Web Deploy Live Mirror (CF Workers)
+
+on:
+  push:
+    branches: [mirror/live-as-is]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - '.github/workflows/web-deploy-live-mirror.yml'
+      - '.npmrc'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    name: Type-check → Build → Deploy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check (web)
+        run: npm run type-check --workspace=apps/web
+
+      - name: Refuse any worker other than the live mirror
+        run: |
+          python3 - << 'PY'
+          import json, pathlib, re, sys
+          text = pathlib.Path("apps/web/wrangler.jsonc").read_text()
+          text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+          text = re.sub(r"//.*", "", text)
+          cfg = json.loads(text)
+          if cfg.get("name") != "bayou-charity-web-live":
+              sys.exit(f"refusing to deploy worker {cfg.get('name')!r}")
+          for svc in cfg.get("services") or []:
+              if svc.get("service") != "bayou-charity-web-live":
+                  sys.exit(f"refusing service binding {svc.get('service')!r}")
+          for key in ("routes", "route", "custom_domain"):
+              if cfg.get(key):
+                  sys.exit(f"refusing wrangler {key}")
+          if "bayoucharity.org" in json.dumps(cfg):
+              sys.exit("refusing zone or custom domain reference")
+          print("worker name ok: bayou-charity-web-live, no routes")
+          PY
+
+      - name: Build & Deploy via OpenNext
+        run: |
+          set -o pipefail
+          npm run deploy --workspace=apps/web 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+          grep -q 'https://bayou-charity-web-live.' "$RUNNER_TEMP/deploy.log"
+          if grep -E 'Uploaded bayou-charity-web \(|Deployed bayou-charity-web triggers' "$RUNNER_TEMP/deploy.log"; then
+            echo "refusing: deploy targeted bayou-charity-web"
+            exit 1
+          fi
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: bayou-charity
+          SENTRY_PROJECT: bayou-web
+
+      - name: Set Supabase service role secret
+        run: printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --name bayou-charity-web-live
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
