@@ -173,19 +173,46 @@ export function PinsMap({ userId, role }: PinsMapProps) {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
       });
-      // NOAAChartDisplay on this host returns an empty image for Barataria Bay.
-      // The ENC coastal WMS (layer 0) returns a real chart PNG for ~29.4,-89.9.
+      // NOAA MCS NOAAChartDisplay groups. Layer 0 is only "Information about
+      // the chart display" (unsymbolized land and water). The chart itself is:
+      // 1 features, 2 depths, 3 seabed, 4 traffic, 5 special areas,
+      // 6 buoys/beacons/lights, 7 services.
+      // Native tiles stop at 17; zoom 18 upscales those instead of requesting
+      // a level the service does not draw.
       const nautical = L.tileLayer.wms(
-        'https://gis.charttools.noaa.gov/arcgis/services/encdirect/enc_coastal/MapServer/WMSServer',
+        'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer',
         {
-          layers: '0',
+          layers: '1,2,3,4,5,6,7',
           format: 'image/png',
           transparent: false,
           version: '1.1.1',
           attribution: 'NOAA Office of Coast Survey ENC &mdash; Not for navigation',
-          maxZoom: 16,
+          maxZoom: 18,
+          maxNativeZoom: 17,
+          updateWhenIdle: true,
+          keepBuffer: 2,
+          tileSize: 512,
+          zoomOffset: -1,
         }
       );
+      const tileRetries = new WeakMap<HTMLImageElement, number>();
+      nautical.on('tileerror', (event: L.TileErrorEvent) => {
+        const tile = event.tile as HTMLImageElement;
+        const attempts = tileRetries.get(tile) ?? 0;
+        if (attempts >= 2) return;
+        const next = attempts + 1;
+        tileRetries.set(tile, next);
+        window.setTimeout(() => {
+          if (!tile.isConnected) return;
+          try {
+            const url = new URL(tile.src);
+            url.searchParams.set('retry', String(next));
+            tile.src = url.toString();
+          } catch {
+            // Leave the failed tile in place.
+          }
+        }, 400 * next);
+      });
 
       const baseLayers: Record<string, L.TileLayer | L.TileLayer.WMS> = {
         Satellite: satellite,
