@@ -3,7 +3,8 @@
 --
 -- Adds a nullable crop to pins. Null means the current centered cover crop.
 -- photo_crop_x / photo_crop_y are focal percentages (0–100).
--- photo_crop_zoom is a scale and must be at least 1.
+-- photo_crop_zoom is a scale greater than 0 and at most 10.
+-- The test project already uses this check. Do not apply this file to production.
 --
 -- This does not add an UPDATE policy, so existing pin policies stay as they are.
 -- A trigger blocks crop changes unless the caller is an admin or the service
@@ -23,7 +24,7 @@ alter table public.pins
 alter table public.pins
   add constraint pins_photo_crop_x_range check (photo_crop_x is null or (photo_crop_x >= 0 and photo_crop_x <= 100)),
   add constraint pins_photo_crop_y_range check (photo_crop_y is null or (photo_crop_y >= 0 and photo_crop_y <= 100)),
-  add constraint pins_photo_crop_zoom_min check (photo_crop_zoom is null or photo_crop_zoom >= 1);
+  add constraint pins_photo_crop_zoom_min check (photo_crop_zoom is null or (photo_crop_zoom > 0 and photo_crop_zoom <= 10));
 
 create or replace function public.pins_crop_admin_only()
 returns trigger
