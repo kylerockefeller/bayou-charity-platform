@@ -24,6 +24,7 @@
   },
   // Preview only. Deploy with `opennextjs-cloudflare deploy --env staging`.
   // No routes or custom domains — workers.dev only. Bindings are not inherited.
+  // Public Supabase values here are the free TEST project, not production.
   "env": {
     "staging": {
       "name": "bayou-charity-web-staging",
@@ -38,8 +39,8 @@
         "binding": "IMAGES"
       },
       "vars": {
-        "NEXT_PUBLIC_SUPABASE_URL": "https://osiramhnynhwmlfyuqcp.supabase.co",
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_yS9pPiw1F7QuxGcWVAyLXw_oZMI9HCI"
+        "NEXT_PUBLIC_SUPABASE_URL": "https://sycwrikoirwwqnqtznru.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5Y3dyaWtvaXJ3d3FucXR6bnJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4Nzk1NzksImV4cCI6MjExMDQ1NTU3OX0.rCbNtlvXaYbEo5EfqRbjs9yvu_Fjq85PbVsFPvM7rCw"
       }
     }
   }
