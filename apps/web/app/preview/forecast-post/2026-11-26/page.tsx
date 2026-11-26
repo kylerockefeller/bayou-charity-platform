@@ -22,14 +22,14 @@ export default function ThanksgivingForecastPreview() {
       <section className="mt-8 space-y-3">
         <h2 className="font-serif text-lg text-green-deep dark:text-cream">1080×1350</h2>
         <img
-          src="/api/preview/forecast-card?size=story"
+          src="/preview/thanksgiving-forecast-1080x1350.jpg"
           width={1080}
           height={1350}
           alt="Thanksgiving fishing forecast card, 1080 by 1350"
           className="h-auto w-full rounded-xl border border-gold/30"
         />
         <a
-          href="/api/preview/forecast-card?size=story&download=1"
+          href="/preview/thanksgiving-forecast-1080x1350.jpg"
           download="thanksgiving-forecast-1080x1350.jpg"
           className="inline-block rounded-full bg-green-deep px-4 py-2 font-serif text-sm text-cream"
         >
@@ -40,14 +40,14 @@ export default function ThanksgivingForecastPreview() {
       <section className="mt-10 space-y-3">
         <h2 className="font-serif text-lg text-green-deep dark:text-cream">1200×630</h2>
         <img
-          src="/api/preview/forecast-card?size=og"
+          src="/preview/thanksgiving-forecast-1200x630.jpg"
           width={1200}
           height={630}
           alt="Thanksgiving fishing forecast card, 1200 by 630"
           className="h-auto w-full rounded-xl border border-gold/30"
         />
         <a
-          href="/api/preview/forecast-card?size=og&download=1"
+          href="/preview/thanksgiving-forecast-1200x630.jpg"
           download="thanksgiving-forecast-1200x630.jpg"
           className="inline-block rounded-full bg-green-deep px-4 py-2 font-serif text-sm text-cream"
         >

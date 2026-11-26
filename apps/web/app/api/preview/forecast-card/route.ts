@@ -1,26 +1,19 @@
-import { composeForecastCard, loadMarshBackground, type ForecastVariant } from '@/lib/share/compose';
+import { readBundledAsset } from '@/lib/share/assets';
 
 export const dynamic = 'force-dynamic';
 
-const cache = new Map<ForecastVariant, Uint8Array>();
-
+// The cards are rendered ahead of time. Drawing the 1080×1350 card on the
+// worker exceeds the CPU limit, so this route only hands back those files.
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const size = url.searchParams.get('size') === 'og' ? 'og' : 'story';
+  const og = url.searchParams.get('size') === 'og';
   const download = url.searchParams.get('download') === '1';
-  const filename = size === 'og'
+  const filename = og
     ? 'thanksgiving-forecast-1200x630.jpg'
     : 'thanksgiving-forecast-1080x1350.jpg';
 
   try {
-    let jpeg = cache.get(size);
-    if (!jpeg) {
-      jpeg = await composeForecastCard({
-        background: await loadMarshBackground(),
-        variant: size,
-      });
-      cache.set(size, jpeg);
-    }
+    const jpeg = await readBundledAsset(og ? 'forecastOg' : 'forecastStory');
     return new Response(Buffer.from(jpeg), {
       headers: {
         'Content-Type': 'image/jpeg',

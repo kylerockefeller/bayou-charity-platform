@@ -20,6 +20,14 @@ const FILES = {
     publicPath: '/brand/fonts/LiberationSans-Bold.ttf',
     file: new URL('./fonts/LiberationSans-Bold.ttf', import.meta.url),
   },
+  forecastStory: {
+    publicPath: '/preview/thanksgiving-forecast-1080x1350.jpg',
+    file: new URL('../../public/preview/thanksgiving-forecast-1080x1350.jpg', import.meta.url),
+  },
+  forecastOg: {
+    publicPath: '/preview/thanksgiving-forecast-1200x630.jpg',
+    file: new URL('../../public/preview/thanksgiving-forecast-1200x630.jpg', import.meta.url),
+  },
 } as const;
 
 export type BundledAsset = keyof typeof FILES;
