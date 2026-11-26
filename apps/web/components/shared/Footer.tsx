@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { href: '/innisfree', label: 'INNISFREE'  },
   { href: '/volunteer', label: 'Volunteer'  },
   { href: '/donate',    label: 'Donate'     },
+  { href: '/shop',      label: 'Shop'       },
   { href: '/members',   label: 'Members'    },
 ] as const
 
