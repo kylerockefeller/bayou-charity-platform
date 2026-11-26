@@ -8,10 +8,17 @@ function hasSupabaseAuthCookie(request: NextRequest): boolean {
   );
 }
 
+// A redirect here makes the Next.js action client wait on a flight stream that
+// never arrives, so the Save button stays on "Saving…" forever.
+function isServerAction(request: NextRequest): boolean {
+  return request.headers.has('next-action');
+}
+
 export async function middleware(request: NextRequest) {
   // No session cookie means there is nothing to refresh. Skip getUser()
   // so an anonymous visit does not round-trip to Supabase Auth.
   if (!hasSupabaseAuthCookie(request)) {
+    if (isServerAction(request)) return NextResponse.next();
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
@@ -23,6 +30,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user }, error } = await supabase.auth.getUser();
 
   if (error || !user) {
+    if (isServerAction(request)) return response;
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
@@ -34,6 +42,7 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (profile?.role !== 'admin') {
+      if (isServerAction(request)) return response;
       return NextResponse.redirect(new URL('/members/feed', request.url));
     }
   }

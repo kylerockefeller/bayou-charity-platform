@@ -218,13 +218,22 @@ export function PinCropEditor({
   async function save() {
     setSaving(true);
     setError(null);
-    const result = await updatePinPhotoCrop(pin.id, crop);
-    setSaving(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await withClientTimeout(
+        updatePinPhotoCrop(pin.id, crop),
+        20000,
+        'Saving took too long. Please try again.',
+      );
+      if (!result?.ok) {
+        setError(result?.error || 'Could not save the crop.');
+        return;
+      }
+      onSaved(crop);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the crop.');
+    } finally {
+      setSaving(false);
     }
-    onSaved(crop);
   }
 
   return (
@@ -304,4 +313,20 @@ function clampPercent(value: number): number {
 function clampZoom(value: number, min: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(MAX_PIN_ZOOM, Math.max(min, value));
+}
+
+function withClientTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(message));
+      },
+    );
+  });
 }
