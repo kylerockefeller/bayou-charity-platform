@@ -3,6 +3,7 @@
 
 import Image from 'next/image';
 import { CroppedPinPhoto } from '@/components/members/PinCropEditor';
+import { PhotoShare } from '@/components/share/PhotoShare';
 import type { PinCrop } from '@/lib/pin-crop';
 
 export interface GalleryImage {
@@ -17,6 +18,9 @@ export interface GalleryImage {
   /** CSS aspect-ratio for a saved crop. Gallery photos use 4 / 3; pin photos use 2 / 1. */
   frame?: string;
   kind?: 'gallery' | 'pin';
+  /** Logged-in owner or an admin. Not rendered as text. */
+  ownerId?: string | null;
+  share?: { kind: 'pin' | 'gallery'; id: string };
 }
 
 export interface GalleryVideo {
@@ -74,6 +78,11 @@ export default function GalleryGrid({ images, onImageClick, onAdjustCrop }: Gall
             >
               Adjust crop
             </button>
+          )}
+          {img.share && (
+            <div className="mt-1">
+              <PhotoShare kind={img.share.kind} id={img.share.id} />
+            </div>
           )}
         </div>
       ))}

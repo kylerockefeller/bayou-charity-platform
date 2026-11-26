@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
+import { PhotoShare } from '@/components/share/PhotoShare';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -488,6 +489,7 @@ export function AdminPanel({ adminId }: AdminPanelProps) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {pin.photo_url && <PhotoShare kind="pin" id={pin.id} />}
                     <button
                       onClick={() => handleUnflag(pin.id)}
                       className="px-3 py-1 bg-green-water/20 hover:bg-green-water/40 text-green-water dark:text-cream font-serif text-xs rounded-full transition-colors"

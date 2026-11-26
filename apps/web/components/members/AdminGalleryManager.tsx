@@ -8,6 +8,7 @@ import type { Database } from '@bayou/supabase/types';
 import { deleteGalleryPhoto } from '@/app/actions/gallery';
 import { GALLERY_PHOTO_ASPECT, copyPendingToPublic, galleryPhotoUrl, gallerySignedUrl, removePublicCopy, withOptionalCropColumns } from '@/lib/gallery';
 import { saveGalleryCrop } from '@/lib/save-gallery-crop';
+import { PhotoShare } from '@/components/share/PhotoShare';
 import type { PinCrop } from '@/lib/pin-crop';
 
 type GalleryEvent = Database['public']['Tables']['gallery_events']['Row'];
@@ -283,6 +284,7 @@ export function AdminGalleryManager() {
                 >
                   Adjust crop
                 </button>
+                <PhotoShare kind="gallery" id={photo.id} />
                 <select
                   value={photo.event_id ?? ''}
                   onChange={(e) => { void handleReassign(photo.id, e.target.value || null); }}

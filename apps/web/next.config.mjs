@@ -74,12 +74,29 @@ const nextConfig = {
     ],
   },
   transpilePackages: ['@bayou/ui', '@bayou/supabase'],
+  outputFileTracingIncludes: {
+    '/api/share-image': [
+      './lib/share/fonts/**/*',
+      './public/brand/bayou-charity-logo-light-text.png',
+    ],
+    '/api/preview/forecast-card': [
+      './lib/share/fonts/**/*',
+      './public/brand/bayou-charity-logo-light-text.png',
+      './public/Photos/Skyline Marsh golden hue.jpg',
+    ],
+  },
   async headers() {
     return [
       {
         source: '/_next/image',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
+      {
+        source: '/preview/:path*',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
         ],
       },
     ];

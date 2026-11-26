@@ -16,6 +16,7 @@ import {
   withOptionalCropColumns,
 } from '@/lib/gallery';
 import { saveGalleryCrop } from '@/lib/save-gallery-crop';
+import { PhotoShare } from '@/components/share/PhotoShare';
 import type { PinCrop } from '@/lib/pin-crop';
 
 type GallerySubmission = Database['public']['Tables']['gallery_submissions']['Row'] & {
@@ -231,6 +232,7 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
                         Adjust crop
                       </button>
                     )}
+                    <PhotoShare kind="gallery" id={sub.id} />
                   </div>
                 </motion.div>
               ))}
@@ -399,6 +401,7 @@ function AdminGalleryPanel({
               >
                 Adjust crop
               </button>
+              <PhotoShare kind="gallery" id={sub.id} />
             </div>
           </div>
         </div>

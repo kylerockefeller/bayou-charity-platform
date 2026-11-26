@@ -5,6 +5,7 @@ import { createClient } from '@bayou/supabase';
 import { CroppedPinPhoto, PinCropEditor } from '@/components/members/PinCropEditor';
 import { isMissingCropColumn, normalizePinCrop, PIN_PHOTO_ASPECT, type PinCrop } from '@/lib/pin-crop';
 import { MemberLoadError } from '@/lib/member-session';
+import { PhotoShare } from '@/components/share/PhotoShare';
 
 type CropRow = {
   id: string;
@@ -92,6 +93,7 @@ export function PinCropAdmin() {
                 <button type="button" onClick={() => setCropPin(row)} className="shrink-0 font-serif text-sm text-amber">
                   Adjust crop
                 </button>
+                <PhotoShare kind="pin" id={row.id} />
               </div>
             </li>
           ))}

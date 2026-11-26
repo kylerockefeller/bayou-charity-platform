@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/members/', '/auth/', '/sign-in'],
+      disallow: ['/members/', '/auth/', '/sign-in', '/preview/'],
     },
     sitemap: 'https://bayoucharity.org/sitemap.xml',
   }

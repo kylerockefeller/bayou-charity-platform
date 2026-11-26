@@ -58,6 +58,7 @@ function submissionToImage(sub: GallerySubmission, index: number, override?: Pin
     crop,
     frame: GALLERY_PHOTO_ASPECT,
     kind: 'gallery',
+    ownerId: sub.member_id,
   };
 }
 
@@ -123,7 +124,7 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
         .not('photo_url', 'is', null)
         .order('created_at', { ascending: false })
         .limit(100),
-      'id, photo_url, caption, species, location_name',
+      'id, photo_url, caption, species, location_name, user_id',
     ).then(({ data, error }) => {
         if (error) {
           // Swallowing this rendered an empty tab indistinguishable from "no
@@ -136,6 +137,7 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
           caption: string | null;
           species: string | null;
           location_name: string | null;
+          user_id?: string | null;
           photo_crop_x?: number | null;
           photo_crop_y?: number | null;
           photo_crop_zoom?: number | null;
@@ -152,6 +154,7 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
           crop: savedCrop(pin),
           frame: PIN_PHOTO_ASPECT,
           kind: 'pin',
+          ownerId: pin.user_id,
         }));
         setFishPins(imgs);
         setFishLoaded(true);
@@ -168,13 +171,19 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
 
   // Derive the displayed images from active tab + active event
   const displayImages = useMemo<GalleryImage[]>(() => {
-    if (activeEventId === FISH_PICS_TAB) return fishPins;
-    const filtered =
-      activeEventId === 'all'
-        ? submissions
-        : submissions.filter((s) => s.event_id === activeEventId);
-    return filtered.map((s, i) => submissionToImage(s, i, cropOverrides[s.id]));
-  }, [activeEventId, submissions, fishPins, cropOverrides]);
+    const images = activeEventId === FISH_PICS_TAB
+      ? fishPins
+      : (activeEventId === 'all' ? submissions : submissions.filter((s) => s.event_id === activeEventId))
+        .map((s, i) => submissionToImage(s, i, cropOverrides[s.id]));
+    return images.map((image): GalleryImage => {
+      if (!image.id || (image.kind !== 'pin' && image.kind !== 'gallery')) {
+        return { ...image, share: undefined };
+      }
+      const allowed = isAdmin || (!!user && image.ownerId === user.id);
+      if (!allowed) return { ...image, share: undefined };
+      return { ...image, share: { kind: image.kind, id: image.id } };
+    });
+  }, [activeEventId, submissions, fishPins, cropOverrides, user, isAdmin]);
 
   // IntersectionObserver for lazy video autoplay
   useEffect(() => {

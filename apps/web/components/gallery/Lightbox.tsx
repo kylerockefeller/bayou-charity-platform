@@ -6,6 +6,7 @@ import { useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CroppedPinPhoto } from '@/components/members/PinCropEditor';
+import { PhotoShare } from '@/components/share/PhotoShare';
 import type { GalleryImage } from './GalleryGrid';
 
 interface LightboxProps {
@@ -89,6 +90,11 @@ export default function Lightbox({ images, currentIndex, onClose, onPrev, onNext
               >
                 Adjust crop
               </button>
+            )}
+            {image.share && (
+              <div className="mt-3 text-center">
+                <PhotoShare kind={image.share.kind} id={image.share.id} />
+              </div>
             )}
             {/* Show DB caption if present, otherwise alt text */}
             <p className="mt-2 text-center text-cream/80 font-serif text-sm dark:text-cream/70">

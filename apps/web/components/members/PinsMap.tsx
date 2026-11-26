@@ -11,6 +11,7 @@ import { optimizedImageSrc } from '@/lib/images';
 import { normalizePinCrop, placePinImage } from '@/lib/pin-crop';
 import { PinCropEditor } from '@/components/members/PinCropEditor';
 import { removePinPhotoByUrl, removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
+import { PhotoShare } from '@/components/share/PhotoShare';
 
 interface LeafletDivElement extends HTMLDivElement {
   _leaflet_id?: number;
@@ -31,6 +32,7 @@ declare global {
   interface Window {
     __deletePin?: (id: string, photoUrl: string | null) => Promise<void>;
     __editPinCrop?: (id: string) => void;
+    __sharePin?: (id: string) => void;
   }
 }
 
@@ -72,6 +74,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [cropPinId, setCropPinId] = useState<string | null>(null);
+  const [sharePinId, setSharePinId] = useState<string | null>(null);
   const pendingMarkerRef = useRef<unknown>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -263,7 +266,11 @@ export function PinsMap({ userId, role }: PinsMapProps) {
 
   useEffect(() => {
     window.__editPinCrop = (id: string) => setCropPinId(id);
-    return () => { delete window.__editPinCrop; };
+    window.__sharePin = (id: string) => setSharePinId(id);
+    return () => {
+      delete window.__editPinCrop;
+      delete window.__sharePin;
+    };
   }, []);
 
   // Wire window.__deletePin for popup delete buttons
@@ -348,6 +355,14 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           deleteBtn.style.cssText = 'margin-top:6px;padding:3px 10px;background:#e8923a;color:white;border:none;border-radius:12px;font-family:serif;font-size:11px;cursor:pointer';
           deleteBtn.onclick = () => window.__deletePin?.(pin.id, pin.photo_url);
           popupEl.appendChild(deleteBtn);
+        }
+
+        if (pin.photo_url && (pin.user_id === userId || role === 'admin')) {
+          const shareBtn = document.createElement('button');
+          shareBtn.textContent = 'Share';
+          shareBtn.style.cssText = 'margin-top:6px;margin-left:6px;padding:3px 10px;background:#c9a227;color:#301d0e;border:none;border-radius:12px;font-family:serif;font-size:11px;cursor:pointer';
+          shareBtn.onclick = () => window.__sharePin?.(pin.id);
+          popupEl.appendChild(shareBtn);
         }
 
         if (role === 'admin' && pin.photo_url) {
@@ -740,6 +755,14 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      {sharePinId && (
+        <div className="fixed bottom-4 left-1/2 z-[70] flex -translate-x-1/2 items-center gap-3 rounded-full bg-white px-4 py-2 shadow-lg dark:bg-green-deep">
+          <PhotoShare kind="pin" id={sharePinId} />
+          <button type="button" onClick={() => setSharePinId(null)} className="font-serif text-sm text-text-mid">
+            Close
+          </button>
+        </div>
+      )}
       {cropPinId && (() => {
         const pin = pins.find((item) => item.id === cropPinId && item.photo_url);
         if (!pin?.photo_url) return null;

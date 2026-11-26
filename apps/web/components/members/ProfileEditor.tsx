@@ -17,6 +17,7 @@ import Image from 'next/image';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
 import { ACCEPTED_IMAGE_ACCEPT, AVATAR_LONG_EDGE, MAX_UPLOAD_LABEL, prepareUploadFile } from '@/lib/uploads';
+import { PhotoShare } from '@/components/share/PhotoShare';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -139,6 +140,7 @@ export function ProfileEditor({ profile, onSave }: ProfileEditorProps) {
             {uploading ? 'Uploading…' : 'Change Avatar'}
           </button>
           <p className="text-xs text-text-mid dark:text-cream/50 font-serif">JPG, PNG — max {MAX_UPLOAD_LABEL}</p>
+          {avatarUrl && <PhotoShare kind="avatar" id={profile.id} />}
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import { optimizedImageSrc } from '@/lib/images';
 import { CroppedPinPhoto, PinCropEditor } from '@/components/members/PinCropEditor';
 import { removeUploadedPinPhoto, uploadPinPhoto } from '@/lib/pin-photo';
 import { backfillArchived } from '@/lib/backfill';
+import { PhotoShare } from '@/components/share/PhotoShare';
 
 const WeatherWidget = React.lazy(() => import('./community/WeatherWidget'));
 
@@ -357,25 +358,11 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
               </span>
             </div>
 
-            {/* Share */}
-            <div className="flex items-center gap-1 px-3 py-1.5 border-t border-green-water/10">
-              <span className="text-xs text-text-mid mr-1">Share</span>
-              <button
-                onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin + '/members/feed#' + pin.id)}`, '_blank', 'width=600,height=400')}
-                className="text-xs text-text-mid hover:text-amber px-1.5 py-1 rounded transition-colors"
-                aria-label="Share on Facebook"
-              >FB</button>
-              <button
-                onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.origin + '/members/feed#' + pin.id)}&text=${encodeURIComponent((pin.profiles?.display_name ?? 'A member') + ' caught ' + (pin.species ?? 'a fish') + ' at Bayou Family Fishing!')}`, '_blank', 'width=600,height=400')}
-                className="text-xs text-text-mid hover:text-amber px-1.5 py-1 rounded transition-colors"
-                aria-label="Share on X"
-              >X</button>
-              <button
-                onClick={() => { navigator.clipboard.writeText(window.location.origin + '/members/feed#' + pin.id); }}
-                className="text-xs text-text-mid hover:text-amber px-1.5 py-1 rounded transition-colors"
-                aria-label="Copy link"
-              >Link</button>
-            </div>
+            {pin.photo_url && userId === pin.user_id && (
+              <div className="flex items-center gap-1 px-3 py-1.5 border-t border-green-water/10">
+                <PhotoShare kind="pin" id={pin.id} />
+              </div>
+            )}
           </article>
         ))}
       </div>
@@ -524,6 +511,11 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
           >
             Adjust crop
           </button>
+        )}
+        {expandedPhoto.photo_url && userId === expandedPhoto.user_id && (
+          <div className="absolute bottom-6 left-6" onClick={(event) => event.stopPropagation()}>
+            <PhotoShare kind="pin" id={expandedPhoto.id} />
+          </div>
         )}
         <button
           className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full w-9 h-9 flex items-center justify-center text-lg font-bold leading-none"
