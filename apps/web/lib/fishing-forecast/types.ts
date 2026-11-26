@@ -26,6 +26,20 @@ export type FishingSource = {
   date: string;
 };
 
+export type FishingConditions = {
+  windSpeedMph: number | null;
+  windGustMph: number | null;
+  windDirDeg: number | null;
+  waterTempF: number | null;
+  airTempF: number | null;
+  tideHighFt: number | null;
+  tideHighTime: string | null;
+  tideLowFt: number | null;
+  tideLowTime: string | null;
+  tideRangeFt: number | null;
+  waterLevelFt: number | null;
+};
+
 export type FishingDay = {
   date: string;
   /** Derived from the date in America/Chicago. Past = observed, today and future = forecast. */
@@ -36,6 +50,8 @@ export type FishingDay = {
   metrics: FishingMetric[];
   sections: FishingSection[];
   sources: FishingSource[];
+  /** Numeric conditions. Absent or null fields fall back to metrics text. */
+  conditions?: FishingConditions;
   /** True only for the in-repo sample. Never treat these numbers as a real forecast. */
   example: boolean;
   /** True when no stored row exists for this date. */

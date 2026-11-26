@@ -30,7 +30,12 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Body must be JSON.' }, { status: 400 });
   }
 
-  const leaked = privateContentReason(json);
+  let leaked: string | null = null;
+  try {
+    leaked = privateContentReason(json);
+  } catch {
+    return Response.json({ error: 'Payload is too deeply nested.' }, { status: 422 });
+  }
   if (leaked) {
     return Response.json({ error: leaked }, { status: 422 });
   }
@@ -51,7 +56,7 @@ export async function POST(request: Request) {
   });
 
   const day = parsed.data;
-  const { error } = await admin.from('fishing_days').upsert({
+  const row: Record<string, unknown> = {
     date: day.date,
     schema_version: day.schema_version,
     shareable: true,
@@ -64,7 +69,24 @@ export async function POST(request: Request) {
     sources: day.sources,
     example: false,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'date' });
+  };
+  const conditions: Record<string, unknown> = {
+    wind_speed_mph: day.wind_speed_mph,
+    wind_gust_mph: day.wind_gust_mph,
+    wind_dir_deg: day.wind_dir_deg,
+    water_temp_f: day.water_temp_f,
+    air_temp_f: day.air_temp_f,
+    tide_high_ft: day.tide_high_ft,
+    tide_high_time: day.tide_high_time,
+    tide_low_ft: day.tide_low_ft,
+    tide_low_time: day.tide_low_time,
+    tide_range_ft: day.tide_range_ft,
+    water_level_ft: day.water_level_ft,
+  };
+  for (const [column, value] of Object.entries(conditions)) {
+    if (value !== undefined) row[column] = value;
+  }
+  const { error } = await admin.from('fishing_days').upsert(row, { onConflict: 'date' });
 
   if (error) {
     if (isMissingTable(error)) {

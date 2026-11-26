@@ -65,15 +65,23 @@ Ripp must drop named lease spots and coordinates before posting. The page also d
 
 `bite` is `poor`, `fair`, `good`, or `hot`.
 
-`metrics`, `sections`, and `sources` are lists. A new metric `type` or section `type` shows up in the day detail without a layout change. The card always looks for `wind_speed`, `wind_dir`, `tide_high`, `tide_low`, and `water_temp`. Missing ones render as a dash.
+Optional numeric fields may be omitted or null. Schema version stays 1. When present, the card and day detail use them and fall back to `metrics` text otherwise:
 
-`sources[].type` is a label for the chip (`facebook_group`, `magazine`, `local_report`, or any new snake_case type). `url` must be http or https.
+- `wind_speed_mph` 0–150, `wind_gust_mph` 0–200, `wind_dir_deg` integer 0–359
+- `water_temp_f` 20–110, `air_temp_f` -10–130
+- `tide_high_ft` and `tide_low_ft` -10–15, `tide_range_ft` 0–20, `water_level_ft` -10–15 (observed level vs MLLW)
+- `tide_high_time` and `tide_low_time` as `HH:MM` in America/Chicago
+
+`metrics`, `sections`, and `sources` stay lists. A new metric `type` or section `type` shows up in the day detail without a layout change. The card looks for numeric wind, tide, and water first, then `wind_speed`, `wind_dir`, `tide_high`, `tide_low`, and `water_temp`. Missing ones render as a dash.
+
+`sources[].type` is a label for the chip (`facebook_group`, `magazine`, `local_report`, or any new snake_case type). `url` must be http or https. `date` must be a real calendar date. A null character or a payload nested deeper than the schema allows is rejected.
 
 ## Responses
 
 - `200` `{ "ok": true, "date": "2026-11-13", "schema_version": 1 }`
 - `401` missing or wrong secret
-- `422` schema or privacy rejection
+- `400` body is not JSON
+- `422` schema, calendar date, source URL, nesting, null character, or privacy rejection
 - `503` secret, service role, or table not configured
 
 ## Open questions for Ripp

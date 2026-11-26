@@ -1,13 +1,16 @@
 import { createClient } from '@bayou/supabase';
 import { buildExampleDays, emptyDay } from './example-days';
 import { chicagoToday, dayKind, forecastWindow } from './dates';
-import type { BiteLevel, FishingDay, FishingMetric, FishingSection, FishingSource, MemberDayPhoto } from './types';
+import type { BiteLevel, FishingConditions, FishingDay, FishingMetric, FishingSection, FishingSource, MemberDayPhoto } from './types';
 import { BITE_LEVELS } from './types';
 
 export type ForecastResult =
   | { status: 'example'; days: FishingDay[]; photos: MemberDayPhoto[]; notice: string }
   | { status: 'live'; days: FishingDay[]; photos: MemberDayPhoto[] }
   | { status: 'error'; message: string };
+
+const DAY_COLUMNS = 'date, kind, bite, bite_note, summary, metrics, sections, sources, example, shareable';
+const CONDITION_COLUMNS = 'wind_speed_mph, wind_gust_mph, wind_dir_deg, water_temp_f, air_temp_f, tide_high_ft, tide_high_time, tide_low_ft, tide_low_time, tide_range_ft, water_level_ft';
 
 type DayRow = {
   date: string;
@@ -20,6 +23,17 @@ type DayRow = {
   sources: unknown;
   example: boolean | null;
   shareable: boolean | null;
+  wind_speed_mph?: number | null;
+  wind_gust_mph?: number | null;
+  wind_dir_deg?: number | null;
+  water_temp_f?: number | null;
+  air_temp_f?: number | null;
+  tide_high_ft?: number | null;
+  tide_high_time?: string | null;
+  tide_low_ft?: number | null;
+  tide_low_time?: string | null;
+  tide_range_ft?: number | null;
+  water_level_ft?: number | null;
 };
 
 type MemberClient = ReturnType<typeof createClient>;
@@ -46,13 +60,18 @@ export async function loadForecast(supabase: MemberClient): Promise<ForecastResu
     };
   };
 
-  const { data, error } = await db
+  const selectDays = (columns: string) => db
     .from('fishing_days')
-    .select('date, kind, bite, bite_note, summary, metrics, sections, sources, example, shareable')
+    .select(columns)
     .gte('date', dates[0])
     .lte('date', dates[dates.length - 1])
     .eq('shareable', true)
     .order('date', { ascending: true });
+
+  let { data, error } = await selectDays(`${DAY_COLUMNS}, ${CONDITION_COLUMNS}`);
+  if (error && isMissingConditionColumn(error)) {
+    ({ data, error } = await selectDays(DAY_COLUMNS));
+  }
 
   if (error) {
     if (isMissingTable(error)) {
@@ -121,6 +140,7 @@ function toDay(row: DayRow, today: string): FishingDay {
     metrics: asMetrics(row.metrics),
     sections: asSections(row.sections),
     sources: asSources(row.sources),
+    conditions: asConditions(row),
     example: false,
     missing: false,
   };
@@ -161,6 +181,41 @@ function asSources(value: unknown): FishingSource[] {
     if (!/^https?:\/\//.test(row.url)) return [];
     return [{ type: row.type, label: row.label, url: row.url, date: row.date }];
   });
+}
+
+function asConditions(row: DayRow): FishingConditions {
+  return {
+    windSpeedMph: asNumber(row.wind_speed_mph),
+    windGustMph: asNumber(row.wind_gust_mph),
+    windDirDeg: asNumber(row.wind_dir_deg),
+    waterTempF: asNumber(row.water_temp_f),
+    airTempF: asNumber(row.air_temp_f),
+    tideHighFt: asNumber(row.tide_high_ft),
+    tideHighTime: asTime(row.tide_high_time),
+    tideLowFt: asNumber(row.tide_low_ft),
+    tideLowTime: asTime(row.tide_low_time),
+    tideRangeFt: asNumber(row.tide_range_ft),
+    waterLevelFt: asNumber(row.water_level_ft),
+  };
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
+  return null;
+}
+
+function asTime(value: unknown): string | null {
+  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
+}
+
+function isMissingConditionColumn(error: { code?: string; message: string }): boolean {
+  const message = error.message.toLowerCase();
+  return error.code === '42703'
+    || error.code === 'PGRST204'
+    || message.includes('wind_speed_mph')
+    || message.includes('water_temp_f')
+    || message.includes('tide_high_ft');
 }
 
 function isMissingTable(error: { code?: string; message: string }): boolean {

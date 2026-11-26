@@ -142,7 +142,7 @@ function DayCard({
           <dl className="font-serif text-xs text-text-mid dark:text-cream/70 space-y-1">
             <div><dt className="inline">Wind </dt><dd className="inline text-text-dark dark:text-cream">{windLine(day)}</dd></div>
             <div><dt className="inline">Tide </dt><dd className="inline text-text-dark dark:text-cream">{tideLine(day)}</dd></div>
-            <div><dt className="inline">Water </dt><dd className="inline text-text-dark dark:text-cream">{metricLine(day, 'water_temp')}</dd></div>
+            <div><dt className="inline">Water </dt><dd className="inline text-text-dark dark:text-cream">{waterLine(day)}</dd></div>
           </dl>
         </>
       )}
@@ -191,7 +191,10 @@ function DayDetail({
               {day.bite}{day.biteNote ? ` — ${day.biteNote}` : ''}
             </p>
             <ul className="space-y-2">
-              {day.metrics.map((metric) => (
+              {conditionLines(day).map((line) => (
+                <li key={line} className="font-serif text-sm text-text-dark dark:text-cream/90">{line}</li>
+              ))}
+              {visibleMetrics(day).map((metric) => (
                 <li key={`${metric.type}-${metric.value}`} className="font-serif text-sm text-text-dark dark:text-cream/90">
                   <span className="text-text-mid dark:text-cream/60">{metric.label}: </span>
                   {metric.value}{metric.unit ? ` ${metric.unit}` : ''}
@@ -256,6 +259,8 @@ function DayDetail({
 }
 
 function windLine(day: FishingDay): string {
+  const numeric = numericWind(day);
+  if (numeric) return numeric;
   const speed = metricLine(day, 'wind_speed');
   const dir = metricLine(day, 'wind_dir');
   if (speed === '—' && dir === '—') return '—';
@@ -264,11 +269,99 @@ function windLine(day: FishingDay): string {
   return `${speed} ${dir}`;
 }
 
+function waterLine(day: FishingDay): string {
+  if (day.conditions?.waterTempF != null) return `${formatNum(day.conditions.waterTempF)}°F`;
+  return metricLine(day, 'water_temp');
+}
+
 function tideLine(day: FishingDay): string {
+  const numeric = numericTide(day);
+  if (numeric) return numeric;
   const high = metricLine(day, 'tide_high');
   const low = metricLine(day, 'tide_low');
   if (high === '—' && low === '—') return '—';
   return `H ${high} · L ${low}`;
+}
+
+function conditionLines(day: FishingDay): string[] {
+  const lines: string[] = [];
+  const wind = numericWind(day);
+  if (wind) lines.push(`Wind ${wind}`);
+  const water = day.conditions?.waterTempF;
+  if (water != null) lines.push(`Water ${formatNum(water)}°F`);
+  const air = day.conditions?.airTempF;
+  if (air != null) lines.push(`Air ${formatNum(air)}°F`);
+  const tide = numericTide(day);
+  if (tide) lines.push(tide);
+  const range = day.conditions?.tideRangeFt;
+  if (range != null) lines.push(`Tide range ${formatNum(range)} ft`);
+  const level = day.conditions?.waterLevelFt;
+  if (level != null) lines.push(`Water level ${formatNum(level)} ft`);
+  return lines;
+}
+
+function visibleMetrics(day: FishingDay): FishingDay['metrics'] {
+  const conditions = day.conditions;
+  const hidden = new Set<string>();
+  if (conditions && (conditions.windSpeedMph != null || conditions.windGustMph != null || conditions.windDirDeg != null)) {
+    hidden.add('wind_speed');
+    hidden.add('wind_dir');
+    hidden.add('wind_gust');
+  }
+  if (conditions?.waterTempF != null) hidden.add('water_temp');
+  if (conditions?.airTempF != null) hidden.add('air_temp');
+  if (conditions && (conditions.tideHighFt != null || conditions.tideHighTime || conditions.tideLowFt != null || conditions.tideLowTime)) {
+    hidden.add('tide_high');
+    hidden.add('tide_low');
+  }
+  if (conditions?.tideRangeFt != null) hidden.add('tide_range');
+  if (conditions?.waterLevelFt != null) hidden.add('water_level');
+  return day.metrics.filter((metric) => !hidden.has(metric.type));
+}
+
+function numericWind(day: FishingDay): string | null {
+  const conditions = day.conditions;
+  if (!conditions) return null;
+  const { windSpeedMph, windGustMph, windDirDeg } = conditions;
+  if (windSpeedMph == null && windGustMph == null && windDirDeg == null) return null;
+  const parts: string[] = [];
+  const direction = windDirDeg == null ? '' : ` ${compass(windDirDeg)}`;
+  if (windSpeedMph != null) parts.push(`${formatNum(windSpeedMph)} mph${direction}`);
+  else if (direction) parts.push(direction.trim());
+  if (windGustMph != null) parts.push(`gusts ${formatNum(windGustMph)}`);
+  return parts.join(', ');
+}
+
+function numericTide(day: FishingDay): string | null {
+  const conditions = day.conditions;
+  if (!conditions) return null;
+  const low = tidePart('Low', conditions.tideLowFt, conditions.tideLowTime);
+  const high = tidePart('High', conditions.tideHighFt, conditions.tideHighTime);
+  if (!low && !high) return null;
+  return [low, high].filter(Boolean).join(' · ');
+}
+
+function tidePart(label: string, feet: number | null, time: string | null): string | null {
+  if (feet == null && !time) return null;
+  return [label, feet == null ? '' : `${formatNum(feet)} ft`, time ? formatClock(time) : ''].filter(Boolean).join(' ');
+}
+
+function compass(degrees: number): string {
+  const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return labels[Math.round(degrees / 45) % 8] ?? 'N';
+}
+
+function formatNum(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return String(rounded);
+}
+
+function formatClock(hhmm: string): string {
+  const [hourText, minute] = hhmm.split(':');
+  const hour = Number(hourText);
+  const suffix = hour >= 12 ? 'p' : 'a';
+  const twelve = hour % 12 === 0 ? 12 : hour % 12;
+  return `${twelve}:${minute}${suffix}`;
 }
 
 function metricLine(day: FishingDay, type: string): string {
