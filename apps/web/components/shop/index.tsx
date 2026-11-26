@@ -1,5 +1,4 @@
-// TODO: replace with the Bayou Charity Zeffy store URL.
-const ZEFFY_STORE_URL = 'https://www.zeffy.com/';
+const ZEFFY_STORE_URL = 'https://www.zeffy.com/en-US/ticketing/bayou-charity-shop';
 
 const PRODUCTS = [
   { name: 'Bayou Charity T-Shirt' },
