@@ -8,7 +8,7 @@
  *  - backdrop-filter: blur(16px) — glass effect over hero content
  *  - Pill becomes more opaque on scroll (scrollY > 20)
  *  - Active route highlighted with gold filled pill
- *  - Amber "Donate" CTA with glow shadow
+ *  - Amber "Support" CTA with glow shadow
  *  - Mobile: hamburger → full-height overlay menu
  *  - prefers-reduced-motion: transitions disabled
  *
@@ -153,7 +153,7 @@ export default function Nav() {
               onMouseEnter={e => (e.currentTarget.style.background = '#d4802e')}
               onMouseLeave={e => (e.currentTarget.style.background = '#e8923a')}
             >
-              Donate
+              Support
             </Link>
 
             {/* Hamburger — mobile only */}
@@ -242,7 +242,7 @@ export default function Nav() {
                   boxShadow:    '0 2px 12px rgba(232,146,58,0.4)',
                 }}
               >
-                Donate Now
+                Support
               </Link>
             </div>
           </nav>
