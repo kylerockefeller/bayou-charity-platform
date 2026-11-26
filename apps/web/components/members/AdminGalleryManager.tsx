@@ -3,9 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@bayou/supabase';
 import { GalleryThumb } from '@/components/gallery/GalleryThumb';
+import { PinCropEditor } from '@/components/members/PinCropEditor';
 import type { Database } from '@bayou/supabase/types';
 import { deleteGalleryPhoto } from '@/app/actions/gallery';
-import { copyPendingToPublic, removePublicCopy } from '@/lib/gallery';
+import { GALLERY_PHOTO_ASPECT, copyPendingToPublic, galleryPhotoUrl, gallerySignedUrl, removePublicCopy, withOptionalCropColumns } from '@/lib/gallery';
+import { saveGalleryCrop } from '@/lib/save-gallery-crop';
+import type { PinCrop } from '@/lib/pin-crop';
 
 type GalleryEvent = Database['public']['Tables']['gallery_events']['Row'];
 type GallerySubmission = {
@@ -16,6 +19,9 @@ type GallerySubmission = {
   submitted_at: string;
   event_id: string | null;
   gallery_events: { name: string } | null;
+  photo_crop_x?: number | null;
+  photo_crop_y?: number | null;
+  photo_crop_zoom?: number | null;
 };
 
 const PAGE_SIZE = 24;
@@ -33,6 +39,7 @@ export function AdminGalleryManager() {
   const [page, setPage] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [cropPhoto, setCropPhoto] = useState<{ photo: GallerySubmission; src: string } | null>(null);
 
   const loadEvents = useCallback(async () => {
     const { data } = await supabase.from('gallery_events').select('*').order('sort_order');
@@ -45,17 +52,20 @@ export function AdminGalleryManager() {
     pg: number,
   ) => {
     setLoading(true);
-    let query = supabase
-      .from('gallery_submissions')
-      .select('id, storage_path, caption, status, submitted_at, event_id, gallery_events(name)')
-      .order('submitted_at', { ascending: false })
-      .range(pg * PAGE_SIZE, pg * PAGE_SIZE + PAGE_SIZE - 1);
-
-    if (eventId !== 'all') query = query.eq('event_id', eventId);
-    if (status !== 'all') query = query.eq('status', status);
-
-    const { data } = await query;
-    setPhotos((data as GallerySubmission[]) ?? []);
+    const { data } = await withOptionalCropColumns(
+      (columns) => {
+        let query = supabase
+          .from('gallery_submissions')
+          .select(columns)
+          .order('submitted_at', { ascending: false })
+          .range(pg * PAGE_SIZE, pg * PAGE_SIZE + PAGE_SIZE - 1);
+        if (eventId !== 'all') query = query.eq('event_id', eventId);
+        if (status !== 'all') query = query.eq('status', status);
+        return query;
+      },
+      'id, storage_path, caption, status, submitted_at, event_id, gallery_events(name)',
+    );
+    setPhotos((data as unknown as GallerySubmission[]) ?? []);
     setLoading(false);
   }, [supabase]);
 
@@ -139,6 +149,17 @@ export function AdminGalleryManager() {
     void loadPhotos(activeEvent, statusFilter, page);
   }
 
+  async function openCrop(photo: GallerySubmission) {
+    const src = photo.status === 'approved'
+      ? galleryPhotoUrl(photo.storage_path, photo.status)
+      : await gallerySignedUrl(supabase, photo.storage_path);
+    if (!src) {
+      showToast('Photo unavailable');
+      return;
+    }
+    setCropPhoto({ photo, src });
+  }
+
   const statusChips: { label: string; value: StatusFilter }[] = [
     { label: 'All', value: 'all' },
     { label: 'Pending', value: 'pending' },
@@ -208,12 +229,13 @@ export function AdminGalleryManager() {
               className="rounded-xl overflow-hidden border border-gold/10 bg-cream dark:bg-green-deep/40"
             >
               {/* Thumbnail with hover overlay */}
-              <div className="aspect-square relative overflow-hidden group">
+              <div className="relative aspect-[4/3] overflow-hidden group">
                 <GalleryThumb
                   storagePath={photo.storage_path}
                   status={photo.status}
                   alt={photo.caption ?? 'Gallery photo'}
                   sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  crop={photoCrop(photo)}
                 />
                 {/* Status badge */}
                 {photo.status !== 'approved' && (
@@ -253,7 +275,14 @@ export function AdminGalleryManager() {
               </div>
 
               {/* Reassign dropdown — always visible */}
-              <div className="p-2">
+              <div className="p-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => { void openCrop(photo); }}
+                  className="font-serif text-sm text-amber"
+                >
+                  Adjust crop
+                </button>
                 <select
                   value={photo.event_id ?? ''}
                   onChange={(e) => { void handleReassign(photo.id, e.target.value || null); }}
@@ -299,6 +328,42 @@ export function AdminGalleryManager() {
           {toast}
         </div>
       )}
+      {cropPhoto && (
+        <PinCropEditor
+          pin={{
+            id: cropPhoto.photo.id,
+            photo_url: cropPhoto.src,
+            caption: cropPhoto.photo.caption,
+            photo_crop_x: cropPhoto.photo.photo_crop_x,
+            photo_crop_y: cropPhoto.photo.photo_crop_y,
+            photo_crop_zoom: cropPhoto.photo.photo_crop_zoom,
+          }}
+          aspect={GALLERY_PHOTO_ASPECT}
+          saveCrop={(crop) => saveGalleryCrop(cropPhoto.photo.id, crop)}
+          onClose={() => setCropPhoto(null)}
+          onSaved={(crop) => {
+            setPhotos((current) => current.map((item) => item.id === cropPhoto.photo.id ? { ...item, ...cropFields(crop) } : item));
+            setCropPhoto(null);
+          }}
+        />
+      )}
     </div>
   );
+}
+
+function photoCrop(photo: GallerySubmission): PinCrop | null {
+  if (
+    typeof photo.photo_crop_x !== 'number'
+    && typeof photo.photo_crop_y !== 'number'
+    && typeof photo.photo_crop_zoom !== 'number'
+  ) return null;
+  return {
+    x: photo.photo_crop_x ?? 50,
+    y: photo.photo_crop_y ?? 50,
+    zoom: photo.photo_crop_zoom ?? 1,
+  };
+}
+
+function cropFields(crop: PinCrop) {
+  return { photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom };
 }

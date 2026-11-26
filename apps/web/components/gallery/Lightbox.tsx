@@ -5,6 +5,7 @@
 import { useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CroppedPinPhoto } from '@/components/members/PinCropEditor';
 import type { GalleryImage } from './GalleryGrid';
 
 interface LightboxProps {
@@ -13,9 +14,10 @@ interface LightboxProps {
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
+  onAdjustCrop?: (image: GalleryImage) => void;
 }
 
-export default function Lightbox({ images, currentIndex, onClose, onPrev, onNext }: LightboxProps) {
+export default function Lightbox({ images, currentIndex, onClose, onPrev, onNext, onAdjustCrop }: LightboxProps) {
   const isOpen = currentIndex !== null;
 
   const handleKeyDown = useCallback(
@@ -65,14 +67,29 @@ export default function Lightbox({ images, currentIndex, onClose, onPrev, onNext
             className="relative max-w-5xl max-h-[85vh] mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <Image
-              src={image.src}
-              alt={image.alt}
-              width={image.width}
-              height={image.height}
-              className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl"
-              priority
-            />
+            {image.crop && image.frame ? (
+              <div className="relative w-[min(92vw,56rem)] overflow-hidden rounded-lg shadow-2xl bg-green-deep/40" style={{ aspectRatio: image.frame }}>
+                <CroppedPinPhoto src={image.src} alt={image.alt} crop={image.crop} />
+              </div>
+            ) : (
+              <Image
+                src={image.src}
+                alt={image.alt}
+                width={image.width}
+                height={image.height}
+                className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl"
+                priority
+              />
+            )}
+            {onAdjustCrop && image.id && (
+              <button
+                type="button"
+                onClick={() => onAdjustCrop(image)}
+                className="mt-3 mx-auto block px-4 py-2 rounded-full bg-amber text-white font-serif text-sm"
+              >
+                Adjust crop
+              </button>
+            )}
             {/* Show DB caption if present, otherwise alt text */}
             <p className="mt-2 text-center text-cream/80 font-serif text-sm dark:text-cream/70">
               {image.caption ?? image.alt}

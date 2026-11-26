@@ -229,6 +229,9 @@ export type Database = {
           event_id: string | null
           id: string
           member_id: string | null
+          photo_crop_x: number | null
+          photo_crop_y: number | null
+          photo_crop_zoom: number | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string | null
@@ -240,6 +243,9 @@ export type Database = {
           event_id?: string | null
           id?: string
           member_id?: string | null
+          photo_crop_x?: number | null
+          photo_crop_y?: number | null
+          photo_crop_zoom?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string | null
@@ -251,6 +257,9 @@ export type Database = {
           event_id?: string | null
           id?: string
           member_id?: string | null
+          photo_crop_x?: number | null
+          photo_crop_y?: number | null
+          photo_crop_zoom?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string | null

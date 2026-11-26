@@ -106,10 +106,14 @@ export function PinCropEditor({
   pin,
   onClose,
   onSaved,
+  aspect = PIN_PHOTO_ASPECT,
+  saveCrop,
 }: {
   pin: CropPin;
   onClose: () => void;
   onSaved: (crop: PinCrop) => void;
+  aspect?: string;
+  saveCrop?: (crop: PinCrop) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const saved = hasSavedCrop(pin);
   const [crop, setCrop] = useState<PinCrop>(() => saved ? normalizePinCrop(pin) : { x: 50, y: 50, zoom: 1 });
@@ -219,7 +223,7 @@ export function PinCropEditor({
     setError(null);
     try {
       const result = await withClientTimeout(
-        savePinPhotoCrop(pin.id, crop),
+        saveCrop ? saveCrop(crop) : savePinPhotoCrop(pin.id, crop),
         20000,
         'Saving took too long. Please try again.',
       );
@@ -254,7 +258,7 @@ export function PinCropEditor({
         <div
           ref={frameRef}
           className="relative w-full overflow-hidden rounded-xl bg-green-deep/20 touch-none"
-          style={{ aspectRatio: PIN_PHOTO_ASPECT }}
+          style={{ aspectRatio: aspect }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}

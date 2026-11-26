@@ -20,6 +20,10 @@
 // gallery-public IS public, so approved URLs serve anonymously.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isMissingCropColumn } from '@/lib/pin-crop';
+
+/** Shared frame for a saved gallery crop. Pin photos stay on the map's 2:1 frame. */
+export const GALLERY_PHOTO_ASPECT = '4 / 3';
 
 export const GALLERY_PENDING_BUCKET = 'gallery-pending';
 export const GALLERY_PUBLIC_BUCKET = 'gallery-public';
@@ -34,6 +38,17 @@ export function galleryBucketForStatus(status: string): string {
 
 export function galleryPhotoUrl(storagePath: string, status: string): string {
   return `${STORAGE_PUBLIC_BASE}/${galleryBucketForStatus(status)}/${storagePath}`;
+}
+
+// Selects crop columns when they exist. A database that has not had the
+// gallery crop migration yet still returns the base columns.
+export async function withOptionalCropColumns<T>(
+  run: (columns: string) => PromiseLike<{ data: T | null; error: { message?: string; code?: string } | null }>,
+  baseColumns: string,
+): Promise<{ data: T | null; error: { message?: string; code?: string } | null }> {
+  const cropped = await run(`${baseColumns}, photo_crop_x, photo_crop_y, photo_crop_zoom`);
+  if (cropped.error && isMissingCropColumn(cropped.error)) return run(baseColumns);
+  return cropped;
 }
 
 // gallery-pending is private. Public URLs 400. Callers that render a

@@ -3,13 +3,20 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GalleryThumb } from '@/components/gallery/GalleryThumb';
+import { PinCropEditor } from '@/components/members/PinCropEditor';
 import { createClient } from '@bayou/supabase';
 import type { Database } from '@bayou/supabase/types';
 import { ACCEPTED_IMAGE_ACCEPT, prepareUploadFile } from '@/lib/uploads';
 import {
   GALLERY_PENDING_BUCKET,
+  GALLERY_PHOTO_ASPECT,
   copyPendingToPublic,
+  galleryPhotoUrl,
+  gallerySignedUrl,
+  withOptionalCropColumns,
 } from '@/lib/gallery';
+import { saveGalleryCrop } from '@/lib/save-gallery-crop';
+import type { PinCrop } from '@/lib/pin-crop';
 
 type GallerySubmission = Database['public']['Tables']['gallery_submissions']['Row'] & {
   profiles: { display_name: string | null; avatar_url: string | null } | null;
@@ -30,6 +37,7 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cropTarget, setCropTarget] = useState<{ submission: GallerySubmission; src: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const supabase = useMemo(() => createClient(), []);
@@ -43,18 +51,21 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
     let mounted = true;
     setLoading(true);
     const [{ data: subs }, { data: evts }] = await Promise.all([
-      supabase
-        .from('gallery_submissions')
-        .select('id, member_id, event_id, storage_path, caption, status, submitted_at, profiles!member_id(display_name, avatar_url)')
-        .eq('member_id', userId)
-        .order('submitted_at', { ascending: false }),
+      withOptionalCropColumns(
+        (columns) => supabase
+          .from('gallery_submissions')
+          .select(columns)
+          .eq('member_id', userId)
+          .order('submitted_at', { ascending: false }),
+        'id, member_id, event_id, storage_path, caption, status, submitted_at, profiles!member_id(display_name, avatar_url)',
+      ),
       supabase
         .from('gallery_events')
         .select('*')
         .order('event_date', { ascending: false }),
     ]);
     if (!mounted) return;
-    if (subs) setSubmissions(subs as GallerySubmission[]);
+    if (subs) setSubmissions(subs as unknown as GallerySubmission[]);
     if (evts) {
       setEvents(evts);
       // Set default event only on first load — never again — to prevent infinite loop.
@@ -196,12 +207,13 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
                   transition={{ delay: i * 0.05 }}
                   className="glass-card overflow-hidden"
                 >
-                  <div className="relative aspect-video bg-green-deep/10">
+                  <div className="relative aspect-[4/3] bg-green-deep/10">
                     <GalleryThumb
                       storagePath={sub.storage_path}
                       status={sub.status ?? 'pending'}
                       alt={sub.caption ?? 'Gallery submission'}
                       sizes="(max-width: 768px) 100vw, 50vw"
+                      crop={photoCrop(sub)}
                     />
                   </div>
                   <div className="p-3 space-y-1">
@@ -211,6 +223,11 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-serif ${statusColor[sub.status ?? 'pending'] ?? ''}`}>
                       {(sub.status ?? 'pending').charAt(0).toUpperCase() + (sub.status ?? 'pending').slice(1)}
                     </span>
+                    {role === 'admin' && (
+                      <button type="button" onClick={() => { void openCrop(sub); }} className="block font-serif text-sm text-amber">
+                        Adjust crop
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -220,32 +237,89 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
       </div>
 
       {/* Admin: all pending submissions */}
-      {role === 'admin' && <AdminGalleryPanel supabase={supabase} adminId={userId} onUpdate={loadData} />}
+      {role === 'admin' && (
+        <AdminGalleryPanel
+          supabase={supabase}
+          adminId={userId}
+          onUpdate={loadData}
+          onAdjust={(submission) => { void openCrop(submission); }}
+        />
+      )}
+      {cropTarget && (
+        <PinCropEditor
+          pin={{
+            id: cropTarget.submission.id,
+            photo_url: cropTarget.src,
+            caption: cropTarget.submission.caption,
+            photo_crop_x: cropTarget.submission.photo_crop_x,
+            photo_crop_y: cropTarget.submission.photo_crop_y,
+            photo_crop_zoom: cropTarget.submission.photo_crop_zoom,
+          }}
+          aspect={GALLERY_PHOTO_ASPECT}
+          saveCrop={(crop) => saveGalleryCrop(cropTarget.submission.id, crop)}
+          onClose={() => setCropTarget(null)}
+          onSaved={(crop) => {
+            setSubmissions((current) => current.map((item) => item.id === cropTarget.submission.id
+              ? { ...item, photo_crop_x: crop.x, photo_crop_y: crop.y, photo_crop_zoom: crop.zoom }
+              : item));
+            setCropTarget(null);
+          }}
+        />
+      )}
     </div>
   );
+
+  async function openCrop(submission: GallerySubmission) {
+    const src = submission.status === 'approved'
+      ? galleryPhotoUrl(submission.storage_path, submission.status)
+      : await gallerySignedUrl(supabase, submission.storage_path);
+    if (!src) {
+      setError('Photo unavailable');
+      return;
+    }
+    setCropTarget({ submission, src });
+  }
 }
 
 // Admin sub-component — only rendered for admins
+function photoCrop(row: {
+  photo_crop_x?: number | null;
+  photo_crop_y?: number | null;
+  photo_crop_zoom?: number | null;
+}): PinCrop | null {
+  if (
+    typeof row.photo_crop_x !== 'number'
+    && typeof row.photo_crop_y !== 'number'
+    && typeof row.photo_crop_zoom !== 'number'
+  ) return null;
+  return { x: row.photo_crop_x ?? 50, y: row.photo_crop_y ?? 50, zoom: row.photo_crop_zoom ?? 1 };
+}
+
 function AdminGalleryPanel({
   supabase,
   adminId,
   onUpdate,
+  onAdjust,
 }: {
   supabase: ReturnType<typeof createClient>;
   adminId: string;
   onUpdate: () => void;
+  onAdjust: (submission: GallerySubmission) => void;
 }) {
   const [pending, setPending] = useState<GallerySubmission[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadPending = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('gallery_submissions')
-      .select('id, member_id, event_id, storage_path, caption, status, submitted_at, profiles!member_id(display_name, avatar_url)')
-      .eq('status', 'pending')
-      .order('submitted_at', { ascending: true });
-    if (data) setPending(data as GallerySubmission[]);
+    const { data } = await withOptionalCropColumns(
+      (columns) => supabase
+        .from('gallery_submissions')
+        .select(columns)
+        .eq('status', 'pending')
+        .order('submitted_at', { ascending: true }),
+      'id, member_id, event_id, storage_path, caption, status, submitted_at, profiles!member_id(display_name, avatar_url)',
+    );
+    if (data) setPending(data as unknown as GallerySubmission[]);
     setLoading(false);
   }, [supabase]);
 
@@ -288,12 +362,13 @@ function AdminGalleryPanel({
       <h3 className="font-display text-lg text-green-deep dark:text-cream">Pending Submissions ({pending.length})</h3>
       {pending.map((sub) => (
         <div key={sub.id} className="flex gap-3 items-start border-t border-gold/10 pt-3">
-          <div className="relative w-20 h-14 flex-shrink-0 rounded-lg overflow-hidden bg-green-deep/10">
+          <div className="relative w-24 aspect-[4/3] flex-shrink-0 rounded-lg overflow-hidden bg-green-deep/10">
             <GalleryThumb
               storagePath={sub.storage_path}
               status={sub.status ?? 'pending'}
               alt={sub.caption ?? ''}
-              sizes="80px"
+              sizes="96px"
+              crop={photoCrop(sub)}
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -313,6 +388,13 @@ function AdminGalleryPanel({
                 className="px-3 py-1 bg-amber/10 hover:bg-amber/20 text-amber font-serif text-xs rounded-full transition-colors"
               >
                 Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => onAdjust(sub)}
+                className="px-3 py-1 font-serif text-xs text-amber"
+              >
+                Adjust crop
               </button>
             </div>
           </div>

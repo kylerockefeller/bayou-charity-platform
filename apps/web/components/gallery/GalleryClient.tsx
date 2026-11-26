@@ -13,7 +13,10 @@ import type { GalleryImage } from './GalleryGrid';
 import GalleryFilter, { type GalleryTab } from './GalleryFilter';
 import { createClient } from '@bayou/supabase';
 import type { User } from '@supabase/supabase-js';
-import { galleryPhotoUrl } from '@/lib/gallery';
+import { GALLERY_PHOTO_ASPECT, galleryPhotoUrl, withOptionalCropColumns } from '@/lib/gallery';
+import { PinCropEditor } from '@/components/members/PinCropEditor';
+import { PIN_PHOTO_ASPECT, normalizePinCrop, type PinCrop } from '@/lib/pin-crop';
+import { saveGalleryCrop } from '@/lib/save-gallery-crop';
 
 // Lightbox only loads when a photo is clicked — defer its framer-motion AnimatePresence
 const Lightbox = dynamic(() => import('./Lightbox'), { ssr: false });
@@ -27,7 +30,21 @@ type GallerySubmission = Database['public']['Tables']['gallery_submissions']['Ro
 // Fish Pics tab uses a special sentinel value (not a real event UUID)
 const FISH_PICS_TAB = 'fish';
 
-function submissionToImage(sub: GallerySubmission, index: number): GalleryImage {
+function savedCrop(row: {
+  photo_crop_x?: number | null;
+  photo_crop_y?: number | null;
+  photo_crop_zoom?: number | null;
+}): PinCrop | null {
+  if (
+    typeof row.photo_crop_x !== 'number'
+    && typeof row.photo_crop_y !== 'number'
+    && typeof row.photo_crop_zoom !== 'number'
+  ) return null;
+  return normalizePinCrop(row);
+}
+
+function submissionToImage(sub: GallerySubmission, index: number, override?: PinCrop): GalleryImage {
+  const crop = override ?? savedCrop(sub);
   return {
     // Bucket derived from status via lib/gallery.ts — submissions reaching this
     // page are approved, so this resolves to the public bucket.
@@ -37,6 +54,10 @@ function submissionToImage(sub: GallerySubmission, index: number): GalleryImage 
     width: 1200,
     height: 900,
     index,
+    id: sub.id,
+    crop,
+    frame: GALLERY_PHOTO_ASPECT,
+    kind: 'gallery',
   };
 }
 
@@ -61,14 +82,21 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
   // guard refetches forever when the query legitimately returns zero rows
   // (observed as a permanent "Loading fish pics" spinner pre-2026-07-28).
   const [fishLoaded, setFishLoaded] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [cropImage, setCropImage] = useState<GalleryImage | null>(null);
+  const [cropOverrides, setCropOverrides] = useState<Record<string, PinCrop>>({});
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   // Auth check
   useEffect(() => {
     let mounted = true;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (mounted) setUser(data.user);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!mounted) return;
+      setUser(data.user);
+      if (!data.user) return;
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
+      if (mounted) setIsAdmin(profile?.role === 'admin');
     });
     return () => { mounted = false; };
   }, []);
@@ -87,20 +115,31 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
 
     setFishLoading(true);
     const supabase = createClient();
-    supabase
-      .from('pins')
-      .select('id, photo_url, caption, species, location_name')
-      .eq('flagged', false)
-      .not('photo_url', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(100)
-      .then(({ data, error }) => {
+    withOptionalCropColumns(
+      (columns) => supabase
+        .from('pins')
+        .select(columns)
+        .eq('flagged', false)
+        .not('photo_url', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(100),
+      'id, photo_url, caption, species, location_name',
+    ).then(({ data, error }) => {
         if (error) {
           // Swallowing this rendered an empty tab indistinguishable from "no
           // catches yet" — keep the grid empty but leave evidence.
           console.error('[FishPics] pins query failed:', error.message);
         }
-        const imgs: GalleryImage[] = (data ?? []).map((pin, i) => ({
+        const imgs: GalleryImage[] = ((data ?? []) as unknown as Array<{
+          id: string;
+          photo_url: string | null;
+          caption: string | null;
+          species: string | null;
+          location_name: string | null;
+          photo_crop_x?: number | null;
+          photo_crop_y?: number | null;
+          photo_crop_zoom?: number | null;
+        }>).map((pin, i) => ({
           src: pin.photo_url!,
           alt: pin.species
             ? `${pin.species} caught ${pin.location_name ? 'at ' + pin.location_name : 'on the bayou'}`
@@ -109,6 +148,10 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
           width: 1200,
           height: 900,
           index: i,
+          id: pin.id,
+          crop: savedCrop(pin),
+          frame: PIN_PHOTO_ASPECT,
+          kind: 'pin',
         }));
         setFishPins(imgs);
         setFishLoaded(true);
@@ -130,8 +173,8 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
       activeEventId === 'all'
         ? submissions
         : submissions.filter((s) => s.event_id === activeEventId);
-    return filtered.map((s, i) => submissionToImage(s, i));
-  }, [activeEventId, submissions, fishPins]);
+    return filtered.map((s, i) => submissionToImage(s, i, cropOverrides[s.id]));
+  }, [activeEventId, submissions, fishPins, cropOverrides]);
 
   // IntersectionObserver for lazy video autoplay
   useEffect(() => {
@@ -315,7 +358,11 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
                   No photos yet for this event.
                 </p>
               ) : (
-                <GalleryGrid images={displayImages} onImageClick={setLightboxIndex} />
+                <GalleryGrid
+                  images={displayImages}
+                  onImageClick={setLightboxIndex}
+                  onAdjustCrop={isAdmin ? setCropImage : undefined}
+                />
               )}
             </motion.div>
           )}
@@ -365,7 +412,46 @@ export default function GalleryClient({ events, submissions }: GalleryClientProp
         onClose={() => setLightboxIndex(null)}
         onPrev={handlePrev}
         onNext={handleNext}
+        onAdjustCrop={isAdmin ? setCropImage : undefined}
       />
+      {cropImage?.id && (
+        <PinCropEditor
+          pin={{
+            id: cropImage.id,
+            photo_url: cropImage.src,
+            caption: cropImage.caption,
+            photo_crop_x: cropImage.crop?.x,
+            photo_crop_y: cropImage.crop?.y,
+            photo_crop_zoom: cropImage.crop?.zoom,
+          }}
+          aspect={cropImage.frame}
+          saveCrop={cropImage.kind === 'pin'
+            ? (crop) => savePinCrop(cropImage.id!, crop)
+            : (crop) => saveGalleryCrop(cropImage.id!, crop)}
+          onClose={() => setCropImage(null)}
+          onSaved={(crop) => {
+            if (cropImage.kind === 'pin') {
+              setFishPins((current) => current.map((item) => item.id === cropImage.id ? { ...item, crop } : item));
+            } else {
+              setCropOverrides((current) => ({ ...current, [cropImage.id!]: crop }));
+            }
+            setCropImage(null);
+          }}
+        />
+      )}
     </section>
   );
+}
+
+async function savePinCrop(pinId: string, crop: PinCrop): Promise<{ ok: true } | { ok: false; error: string }> {
+  const response = await fetch('/api/pin-crop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pinId, crop }),
+  });
+  const result = await response.json().catch(() => null);
+  if (!result || typeof result !== 'object' || !('ok' in result)) {
+    return { ok: false, error: 'Could not save the crop.' };
+  }
+  return result as { ok: true } | { ok: false; error: string };
 }

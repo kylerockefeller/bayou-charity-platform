@@ -4,17 +4,21 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@bayou/supabase';
 import { galleryPhotoUrl, gallerySignedUrl } from '@/lib/gallery';
+import { CroppedPinPhoto } from '@/components/members/PinCropEditor';
+import type { PinCrop } from '@/lib/pin-crop';
 
 export function GalleryThumb({
   storagePath,
   status,
   alt,
   sizes,
+  crop,
 }: {
   storagePath: string;
   status: string;
   alt: string;
   sizes: string;
+  crop?: PinCrop | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const approved = status === 'approved';
@@ -47,6 +51,9 @@ export function GalleryThumb({
   }
   if (!src) {
     return <div className="absolute inset-0 animate-pulse bg-green-deep/10" />;
+  }
+  if (crop) {
+    return <CroppedPinPhoto src={src} alt={alt} crop={crop} />;
   }
   return <Image src={src} alt={alt} fill className="object-cover" sizes={sizes} />;
 }
