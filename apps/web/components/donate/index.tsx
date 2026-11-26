@@ -83,9 +83,9 @@ function SupportMomAndPops() {
     {
       title: 'Operation Healing Waters / Reel O-Fishal Charters',
       image: {
-        src: '/partners/operation-healing-waters-captain.jpg',
+        src: '/partners/operation-healing-waters-captain-crop.jpg',
         alt: 'Captain Derrious Austin smiling with a redfish, Reel O-Fishal shirt visible',
-        position: 'object-top',
+        position: 'object-center',
       },
       lines: [
         { text: 'operationhealingwaters.org', href: 'https://operationhealingwaters.org' },
