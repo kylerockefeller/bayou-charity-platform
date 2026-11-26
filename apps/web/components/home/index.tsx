@@ -338,7 +338,7 @@ function InnisfreTeaser() {
             className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight"
             style={{ fontFamily: "'Playfair Display', serif", textShadow: '0 2px 16px rgba(13,43,62,0.6)' }}
           >
-            We just bought land.
+            Our New Camp.
           </h2>
         </FadeIn>
         <FadeIn delay={0.25}>
