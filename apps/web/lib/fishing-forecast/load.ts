@@ -91,7 +91,7 @@ export async function loadForecast(supabase: MemberClient): Promise<ForecastResu
       status: 'example',
       days: buildExampleDays(today),
       photos,
-      notice: 'Example data. Ripp has not posted a shareable report for this window yet. These cards are not a live forecast.',
+        notice: 'Example data. No shareable report has been posted for this window yet. These cards are not a live forecast.',
     };
   }
 

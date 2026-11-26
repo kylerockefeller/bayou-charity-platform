@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   FISHING_INGEST_HEADER,
   FISHING_INGEST_SECRET_ENV,
+  attributeFishingTip,
   fishingDayIngestSchema,
   privateContentReason,
 } from '@/lib/fishing-forecast/schema';
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const day = parsed.data;
+  const day = attributeFishingTip(parsed.data);
   const row: Record<string, unknown> = {
     date: day.date,
     schema_version: day.schema_version,

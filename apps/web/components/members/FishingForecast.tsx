@@ -60,7 +60,7 @@ export default function FishingForecast() {
               We&apos;re building a community fishing almanac, made by our members, for our members.
             </p>
             <ul className="mt-3 space-y-1.5 font-serif text-sm text-text-dark dark:text-cream/85 list-disc pl-5">
-              <li>Fishing data and local knowledge, compiled with Ripp</li>
+              <li>Fishing data and local knowledge, compiled for the almanac</li>
               <li>Better forecasts built from real days on the water</li>
               <li>A future weather station at INNISFREE for real-time local conditions</li>
             </ul>
@@ -133,16 +133,19 @@ function DayCard({
         {isToday ? 'Today' : day.kind === 'observed' ? 'Observed' : 'Forecast'}
         {day.example ? ' · Example' : ''}
       </p>
+      {!day.missing && (
+        <p className="font-serif text-[11px] font-semibold text-green-deep dark:text-cream">Fishing tip from Kyle</p>
+      )}
       {day.missing ? (
         <p className="font-serif text-sm text-text-mid dark:text-cream/60">No report yet</p>
       ) : (
         <>
           <p className={`font-display text-lg capitalize ${biteClass(day.bite)}`}>{day.bite}</p>
-          <p className="font-serif text-xs text-text-dark dark:text-cream/80 line-clamp-2">{day.biteNote}</p>
+          <p className="font-serif text-xs text-text-dark dark:text-cream/80 line-clamp-2">{showTip(day.biteNote)}</p>
           <dl className="font-serif text-xs text-text-mid dark:text-cream/70 space-y-1">
-            <div><dt className="inline">Wind </dt><dd className="inline text-text-dark dark:text-cream">{windLine(day)}</dd></div>
-            <div><dt className="inline">Tide </dt><dd className="inline text-text-dark dark:text-cream">{tideLine(day)}</dd></div>
-            <div><dt className="inline">Water </dt><dd className="inline text-text-dark dark:text-cream">{waterLine(day)}</dd></div>
+            <div><dt className="inline">Wind </dt><dd className="inline text-text-dark dark:text-cream">{showTip(windLine(day))}</dd></div>
+            <div><dt className="inline">Tide </dt><dd className="inline text-text-dark dark:text-cream">{showTip(tideLine(day))}</dd></div>
+            <div><dt className="inline">Water </dt><dd className="inline text-text-dark dark:text-cream">{showTip(waterLine(day))}</dd></div>
           </dl>
         </>
       )}
@@ -160,13 +163,32 @@ function DayDetail({
   onClose: () => void;
 }) {
   const label = formatDayLabel(day.date);
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const html = document.documentElement;
+    const previousBody = body.style.cssText;
+    const previousHtmlOverflow = html.style.overflow;
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    return () => {
+      body.style.cssText = previousBody;
+      html.style.overflow = previousHtmlOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
   return (
-    <div className="fixed inset-0 z-40 bg-green-deep/50" onClick={onClose}>
+    <div className="fixed inset-0 z-40 overflow-hidden overscroll-none bg-green-deep/50 touch-none" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`${label.weekday} ${label.monthDay} fishing report`}
-        className="absolute inset-x-0 bottom-0 md:inset-auto md:left-1/2 md:top-1/2 md:w-[40rem] md:-translate-x-1/2 md:-translate-y-1/2 max-h-[88vh] overflow-y-auto rounded-t-2xl md:rounded-2xl bg-cream dark:bg-green-deep border border-gold/20 p-5 space-y-5"
+        className="absolute inset-x-0 bottom-0 md:inset-auto md:left-1/2 md:top-1/2 md:w-[40rem] md:-translate-x-1/2 md:-translate-y-1/2 max-h-[100dvh] md:max-h-[min(40rem,88dvh)] overflow-y-auto overscroll-contain touch-pan-y rounded-t-2xl md:rounded-2xl bg-cream dark:bg-green-deep border border-gold/20 p-5 space-y-5"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -175,6 +197,9 @@ function DayDetail({
               {day.kind === 'observed' ? 'Observed' : 'Forecast'}
               {day.example ? ' · Example' : ''}
             </p>
+            {!day.missing && (
+              <p className="font-serif text-sm font-semibold text-green-deep dark:text-cream">Fishing tip from Kyle</p>
+            )}
             <h2 className="font-display text-2xl text-green-deep dark:text-cream">
               {label.weekday} {label.monthDay}
             </h2>
@@ -186,26 +211,26 @@ function DayDetail({
           <p className="font-serif text-sm text-text-mid dark:text-cream/70">No shareable report has been posted for this date.</p>
         ) : (
           <>
-            <p className="font-serif text-sm text-text-dark dark:text-cream/90">{day.summary}</p>
+            <p className="font-serif text-sm text-text-dark dark:text-cream/90">{showTip(day.summary)}</p>
             <p className={`font-display text-xl capitalize ${biteClass(day.bite)}`}>
-              {day.bite}{day.biteNote ? ` — ${day.biteNote}` : ''}
+              {day.bite}{day.biteNote ? ` — ${showTip(day.biteNote)}` : ''}
             </p>
             <ul className="space-y-2">
               {conditionLines(day).map((line) => (
-                <li key={line} className="font-serif text-sm text-text-dark dark:text-cream/90">{line}</li>
+                <li key={line} className="font-serif text-sm text-text-dark dark:text-cream/90">{showTip(line)}</li>
               ))}
               {visibleMetrics(day).map((metric) => (
                 <li key={`${metric.type}-${metric.value}`} className="font-serif text-sm text-text-dark dark:text-cream/90">
-                  <span className="text-text-mid dark:text-cream/60">{metric.label}: </span>
-                  {metric.value}{metric.unit ? ` ${metric.unit}` : ''}
-                  {metric.note ? ` — ${metric.note}` : ''}
+                  <span className="text-text-mid dark:text-cream/60">{showTip(metric.label)}: </span>
+                  {showTip(metric.value)}{metric.unit ? ` ${showTip(metric.unit)}` : ''}
+                  {metric.note ? ` — ${showTip(metric.note)}` : ''}
                 </li>
               ))}
             </ul>
             {day.sections.map((section) => (
               <section key={`${section.type}-${section.title}`}>
-                <h3 className="font-display text-lg text-green-deep dark:text-gold">{section.title}</h3>
-                <p className="font-serif text-sm text-text-dark dark:text-cream/90 whitespace-pre-wrap">{section.body}</p>
+                <h3 className="font-display text-lg text-green-deep dark:text-gold">{showTip(section.title)}</h3>
+                <p className="font-serif text-sm text-text-dark dark:text-cream/90 whitespace-pre-wrap">{showTip(section.body)}</p>
               </section>
             ))}
             {day.sources.length > 0 && (
@@ -218,7 +243,7 @@ function DayDetail({
                     rel="noopener noreferrer"
                     className="font-serif text-xs text-amber border border-amber/40 rounded-full px-3 py-1 hover:bg-amber/10"
                   >
-                    {source.label}
+                    {showTip(source.label)}
                   </a>
                 ))}
               </div>
@@ -256,6 +281,10 @@ function DayDetail({
       </div>
     </div>
   );
+}
+
+function showTip(value: string): string {
+  return value.replace(/\bRipp\b/gi, 'Kyle');
 }
 
 function windLine(day: FishingDay): string {

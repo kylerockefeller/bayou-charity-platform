@@ -15,7 +15,7 @@ export function buildExampleDays(today: string): FishingDay[] {
       kind: dayKind(date, today),
       bite,
       biteNote: 'EXAMPLE outlook only.',
-      summary: 'EXAMPLE — not a live report. Placeholder text so the layout can be reviewed before Ripp is connected.',
+      summary: 'EXAMPLE — not a live report. Placeholder text so the layout can be reviewed before live reports are connected.',
       metrics: [
         { type: 'wind_speed', label: 'Wind', value: offset < 0 ? '8–12' : '10–15', unit: 'mph' },
         { type: 'wind_dir', label: 'Wind direction', value: offset < 0 ? 'E' : 'SE' },
@@ -27,7 +27,7 @@ export function buildExampleDays(today: string): FishingDay[] {
         {
           type: 'report',
           title: 'Example report',
-          body: 'EXAMPLE — a full daily write-up from Ripp would appear here. This sample has no spot names and no coordinates.',
+          body: 'EXAMPLE — a full daily write-up would appear here. Fishing tip from Kyle. This sample has no spot names and no coordinates.',
         },
       ],
       sources: [

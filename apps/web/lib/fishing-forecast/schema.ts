@@ -76,6 +76,37 @@ export const fishingDayIngestSchema = z.object({
 
 export type FishingDayIngest = z.infer<typeof fishingDayIngestSchema>;
 
+const RIPP_NAME = /\bRipp\b/gi;
+
+function creditKyle(value: string): string {
+  return value.replace(RIPP_NAME, 'Kyle');
+}
+
+// Stored copy must not name the ingest bot. The page also always prints
+// "Fishing tip from Kyle", even if a later payload uses another byline.
+export function attributeFishingTip(day: FishingDayIngest): FishingDayIngest {
+  return {
+    ...day,
+    bite_note: creditKyle(day.bite_note),
+    summary: creditKyle(day.summary),
+    metrics: day.metrics.map((metric) => ({
+      ...metric,
+      label: creditKyle(metric.label),
+      value: creditKyle(metric.value),
+      note: metric.note ? creditKyle(metric.note) : metric.note,
+    })),
+    sections: day.sections.map((section) => ({
+      ...section,
+      title: creditKyle(section.title),
+      body: creditKyle(section.body),
+    })),
+    sources: day.sources.map((source) => ({
+      ...source,
+      label: creditKyle(source.label),
+    })),
+  };
+}
+
 const MAX_PAYLOAD_DEPTH = 8;
 
 export function privateContentReason(value: unknown): string | null {
