@@ -184,7 +184,12 @@ function InKindSection() {
 // ─── Licensed Guides ──────────────────────────────────────────────────────────
 
 function LicensedGuides() {
-  const guides = [
+  const guides: {
+    title: string
+    captain: string
+    note?: string
+    lines: { text: string; href: string }[]
+  }[] = [
     {
       title: 'Reel O-Fishal Charters',
       captain: 'Capt. Derrious Austin',
@@ -211,6 +216,16 @@ function LicensedGuides() {
         { text: 'Meet our resident fly fishing guide', href: '/guides/john-macmurray' },
       ],
     },
+    {
+      title: 'Louisiana on the Fly, Captain Shane York',
+      captain: 'Myrtle Grove Marina, Port Sulphur',
+      note: 'Veteran master captain · inshore redfish & speckled trout, sight and fly fishing',
+      lines: [
+        { text: 'Book at Louisiana on the Fly', href: 'https://www.louisianaonthefly.com/' },
+        { text: '504-232-7514', href: 'tel:5042327514' },
+        { text: 'gripping_lips_fishing@yahoo.com', href: 'mailto:gripping_lips_fishing@yahoo.com' },
+      ],
+    },
   ];
 
   return (
@@ -232,13 +247,16 @@ function LicensedGuides() {
         </Link>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {guides.map(({ title, captain, lines }) => (
+        {guides.map(({ title, captain, note, lines }) => (
           <div
             key={title}
             className="glass-card--dark p-4 hover:border-amber transition-colors"
           >
             <h4 className="font-display text-base text-cream font-semibold mb-0.5">{title}</h4>
             <p className="font-serif text-xs text-cream/80 mb-2">{captain}</p>
+            {note ? (
+              <p className="font-serif text-xs text-cream/80 mb-2">{note}</p>
+            ) : null}
             {lines.map(({ text, href }) => (
               <p key={text} className="font-serif text-sm">
                 <a
