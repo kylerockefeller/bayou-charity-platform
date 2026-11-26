@@ -88,7 +88,7 @@ function SupportMomAndPops() {
     {
       title: 'Three Flours Sourdough',
       lines: [
-        { text: 'Local micro bakery owned by a military family · Gretna, LA' },
+        { text: 'Local micro bakery owned by Kaitlyn DuCoing, from a military family · Gretna, LA' },
         { text: 'Order on Loafaly', href: 'https://www.loafaly.com/shop/three-flours-sourdough' },
       ],
     },
