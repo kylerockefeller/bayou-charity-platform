@@ -134,7 +134,7 @@ function DayCard({
         {day.example ? ' · Example' : ''}
       </p>
       {!day.missing && (
-        <p className="font-serif text-[11px] font-semibold text-green-deep dark:text-cream">Fishing tip from Kyle</p>
+        <p className="font-serif text-[11px] font-semibold text-green-deep dark:text-cream">Better fishing day</p>
       )}
       {day.missing ? (
         <p className="font-serif text-sm text-text-mid dark:text-cream/60">No report yet</p>
@@ -198,7 +198,7 @@ function DayDetail({
               {day.example ? ' · Example' : ''}
             </p>
             {!day.missing && (
-              <p className="font-serif text-sm font-semibold text-green-deep dark:text-cream">Fishing tip from Kyle</p>
+              <p className="font-serif text-sm font-semibold text-green-deep dark:text-cream">Better fishing day</p>
             )}
             <h2 className="font-display text-2xl text-green-deep dark:text-cream">
               {label.weekday} {label.monthDay}
@@ -229,7 +229,7 @@ function DayDetail({
             </ul>
             {day.sections.map((section) => (
               <section key={`${section.type}-${section.title}`}>
-                <h3 className="font-display text-lg text-green-deep dark:text-gold">{showTip(section.title)}</h3>
+                <h3 className="font-display text-lg text-green-deep dark:text-gold">{almanacHeading(section.title)}</h3>
                 <p className="font-serif text-sm text-text-dark dark:text-cream/90 whitespace-pre-wrap">{showTip(section.body)}</p>
               </section>
             ))}
@@ -285,6 +285,16 @@ function DayDetail({
 
 function showTip(value: string): string {
   return value.replace(/\bRipp\b/gi, 'Kyle');
+}
+
+// Day-cell and note headings used to read "Fishing tip from Kyle". That
+// byline is a solunar-style day label, not a captain credit.
+function almanacHeading(value: string): string {
+  const shown = showTip(value).trim();
+  if (/^fishing tip from (kyle|ripp)\b\.?$/i.test(shown) || /^tip from (kyle|ripp)\b\.?$/i.test(shown)) {
+    return 'Better fishing day';
+  }
+  return shown;
 }
 
 function windLine(day: FishingDay): string {

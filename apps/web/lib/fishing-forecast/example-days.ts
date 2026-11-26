@@ -27,7 +27,7 @@ export function buildExampleDays(today: string): FishingDay[] {
         {
           type: 'report',
           title: 'Example report',
-          body: 'EXAMPLE — a full daily write-up would appear here. Fishing tip from Kyle. This sample has no spot names and no coordinates.',
+          body: 'EXAMPLE — a full daily write-up would appear here. Better fishing day. This sample has no spot names and no coordinates.',
         },
       ],
       sources: [

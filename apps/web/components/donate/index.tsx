@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ZeffyEmbed } from '@/components/shared/ZeffyEmbed';
 import { PAYMENT_METHODS } from '@/lib/payments';
 
@@ -69,9 +70,25 @@ function ImpactTiers() {
 // ─── Local Biz ────────────────────────────────────────────────────────────────
 
 function SupportMomAndPops() {
-  const partners = [
+  // Operation Healing Waters keeps the first layout: photo across the top of
+  // the card. The file is a framed copy so both hats stay in frame; the
+  // original download is unchanged. The other three cards are a compact 50/50
+  // split, stacking on a narrow screen. Healing Waters and Three Flours copies
+  // are third-party. Sam's reuses the boats-page trawler. Slow Down Park is
+  // the Airbnb cover already linked on that card.
+  const partners: {
+    title: string
+    image?: { src: string; alt: string; banner?: boolean; position?: string }
+    lines: { text: string; href?: string }[]
+  }[] = [
     {
       title: 'Operation Healing Waters / Reel O-Fishal Charters',
+      image: {
+        src: '/partners/operation-healing-waters-card.jpg',
+        alt: 'Two anglers on a boat with a catch of redfish, from the Operation Healing Waters homepage',
+        banner: true,
+        position: 'object-top',
+      },
       lines: [
         { text: 'operationhealingwaters.org', href: 'https://operationhealingwaters.org' },
         { text: 'TikTok: @reelofishal', href: 'https://tiktok.com/@reelofishal' },
@@ -81,12 +98,20 @@ function SupportMomAndPops() {
     },
     {
       title: "Sam's Bait by You & Alligator Hunts",
+      image: {
+        src: '/Photos/Bait%20By%20You%20Hook%20it%20or%20Cook%20it%20(boat).jpg',
+        alt: 'Bait By You shrimp trawler at a bayou dock',
+      },
       lines: [
         { text: 'Capt. Sam Ronquille · 504-906-5812', href: 'tel:5049065812' },
       ],
     },
     {
       title: 'Three Flours Sourdough',
+      image: {
+        src: '/partners/three-flours-sourdough.jpg',
+        alt: 'Sliced sourdough loaf from the Three Flours shop on Loafaly',
+      },
       lines: [
         { text: 'Local micro bakery owned by Kaitlyn DuCoing, from a military family · Gretna, LA' },
         { text: 'Order on Loafaly', href: 'https://www.loafaly.com/shop/three-flours-sourdough' },
@@ -94,6 +119,10 @@ function SupportMomAndPops() {
     },
     {
       title: 'Slow Down Park: Fishing Camp & RV Park',
+      image: {
+        src: '/partners/slow-down-park.jpg',
+        alt: 'Raised camp house and dock at Deer Range Fishing Camp in Port Sulphur',
+      },
       lines: [
         { text: 'Book on Airbnb', href: 'https://www.airbnb.com/rooms/1207497072384874993?unique_share_id=d4ca4ef1-3aad-420e-91e4-b819b5f49ec8&viralityEntryPoint=1&s=76' },
         { text: 'Book on VRBO', href: 'https://www.vrbo.com/5132148?dateless=true' },
@@ -108,25 +137,57 @@ function SupportMomAndPops() {
       <p className="font-serif text-sm text-cream/95 leading-relaxed mb-4">
         We channel a portion of all donations to support local Louisiana businesses that share our values. You can also support one of our partners directly:
       </p>
-      <div className="space-y-4">
-        {partners.map(({ title, lines }) => (
-          <div key={title} className="bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl p-4">
-            <div className="min-w-0">
-              <h4 className="font-display text-base text-green-deep dark:text-gold font-semibold mb-1 leading-snug">{title}</h4>
+      <div className="space-y-2">
+        {partners.map(({ title, image, lines }) => {
+          const copy = (
+            <div className="min-w-0 px-3 py-2">
+              <h4 className="font-display text-sm text-green-deep dark:text-gold font-semibold leading-snug">{title}</h4>
               {lines.map(({ text, href }) => (
                 href ? (
-                  <a key={text} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className="font-serif text-sm text-amber hover:underline flex items-center min-h-[36px]">
+                  <a key={text} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className="font-serif text-xs leading-snug text-amber hover:underline block py-0.5">
                     {text}
                   </a>
                 ) : (
-                  <p key={text} className="font-serif text-sm text-amber flex items-center min-h-[36px]">
+                  <p key={text} className="font-serif text-xs leading-snug text-amber py-0.5">
                     {text}
                   </p>
                 )
               ))}
             </div>
-          </div>
-        ))}
+          );
+          if (image?.banner) {
+            return (
+              <div key={title} className="overflow-hidden bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl">
+                <div className="relative aspect-[16/9] w-full">
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    fill
+                    className={`object-cover ${image.position ?? 'object-top'}`}
+                    sizes="(max-width: 768px) 100vw, 520px"
+                  />
+                </div>
+                {copy}
+              </div>
+            );
+          }
+          return (
+            <div key={title} className="grid grid-cols-1 overflow-hidden bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl lg:grid-cols-2">
+              <div className="order-2 lg:order-1">{copy}</div>
+              {image && (
+                <div className="relative order-1 h-24 lg:order-2 lg:h-auto lg:min-h-[7.5rem]">
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 280px"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -328,7 +389,7 @@ export default function Donate() {
             <ImpactTiers />
 
             {/* Support Mom & Pops */}
-            <div className="glass-card--dark p-8 rounded-xl">
+            <div className="glass-card--dark p-4 rounded-xl">
               <SupportMomAndPops />
             </div>
 

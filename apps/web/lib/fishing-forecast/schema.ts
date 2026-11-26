@@ -82,8 +82,8 @@ function creditKyle(value: string): string {
   return value.replace(RIPP_NAME, 'Kyle');
 }
 
-// Stored copy must not name the ingest bot. The page also always prints
-// "Fishing tip from Kyle", even if a later payload uses another byline.
+// Stored copy must not name the ingest bot. The forecast page labels the
+// day "Better fishing day" rather than a personal byline.
 export function attributeFishingTip(day: FishingDayIngest): FishingDayIngest {
   return {
     ...day,
