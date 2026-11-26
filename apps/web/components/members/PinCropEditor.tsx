@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { updatePinPhotoCrop } from '@/app/actions/pin-crop';
 import { optimizedImageSrc } from '@/lib/images';
 import {
   MAX_PIN_ZOOM,
@@ -220,7 +219,7 @@ export function PinCropEditor({
     setError(null);
     try {
       const result = await withClientTimeout(
-        updatePinPhotoCrop(pin.id, crop),
+        savePinPhotoCrop(pin.id, crop),
         20000,
         'Saving took too long. Please try again.',
       );
@@ -313,6 +312,22 @@ function clampPercent(value: number): number {
 function clampZoom(value: number, min: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(MAX_PIN_ZOOM, Math.max(min, value));
+}
+
+async function savePinPhotoCrop(
+  pinId: string,
+  crop: PinCrop,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const response = await fetch('/api/pin-crop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pinId, crop }),
+  });
+  const result = await response.json().catch(() => null);
+  if (!result || typeof result !== 'object' || !('ok' in result)) {
+    return { ok: false, error: 'Could not save the crop.' };
+  }
+  return result as { ok: true } | { ok: false; error: string };
 }
 
 function withClientTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
