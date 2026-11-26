@@ -62,7 +62,7 @@ export default function FishingForecast() {
             <ul className="mt-3 space-y-1.5 font-serif text-sm text-text-dark dark:text-cream/85 list-disc pl-5">
               <li>Fishing data and local knowledge, compiled with Ripp</li>
               <li>Better forecasts built from real days on the water</li>
-              <li>A future weather station at Innisfree for real-time local conditions</li>
+              <li>A future weather station at INNISFREE for real-time local conditions</li>
             </ul>
           </div>
         </div>
