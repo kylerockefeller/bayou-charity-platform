@@ -81,8 +81,7 @@ export default function Footer() {
               className="text-sm leading-relaxed mb-6"
               style={{ fontFamily: "'Lora', serif", color: 'rgba(238,246,251,0.65)' }}
             >
-              Keepin&apos; the bayou alive — one family, one boat, one cast at a
-              time. We are a Registered Louisiana Non-Profit Corporation and 501c3 applicant.
+              Coastal living is hard work, but the rewards are plenty. Our mission is to share our way of life with those who serve our nation and our communities. We are a registered nonprofit, registered Louisiana nonprofit corporation.
             </p>
 
             {/* Social icons */}
