@@ -70,24 +70,22 @@ function ImpactTiers() {
 // ─── Local Biz ────────────────────────────────────────────────────────────────
 
 function SupportMomAndPops() {
-  // Operation Healing Waters keeps the first layout: photo across the top of
-  // the card. The file is a framed copy so both hats stay in frame; the
-  // original download is unchanged. The other three cards are a compact 50/50
-  // split, stacking on a narrow screen. Healing Waters and Three Flours copies
-  // are third-party. Sam's reuses the boats-page trawler. Slow Down Park is
-  // the Airbnb cover already linked on that card.
+  // All four cards share the compact half-and-half layout. Healing Waters uses
+  // a framed copy of gallery-2 from operationhealingwaters.org so an angler
+  // and the fish fit the wide photo slot. The original hero download is
+  // unchanged. Three Flours is third-party. Sam's reuses the boats-page
+  // trawler. Slow Down Park is the Airbnb cover already linked on that card.
   const partners: {
     title: string
-    image?: { src: string; alt: string; banner?: boolean; position?: string }
+    image?: { src: string; alt: string; position?: string }
     lines: { text: string; href?: string }[]
   }[] = [
     {
       title: 'Operation Healing Waters / Reel O-Fishal Charters',
       image: {
-        src: '/partners/operation-healing-waters-card.jpg',
-        alt: 'Two anglers on a boat with a catch of redfish, from the Operation Healing Waters homepage',
-        banner: true,
-        position: 'object-top',
+        src: '/partners/operation-healing-waters-side.jpg',
+        alt: 'An angler holding a redfish on the water',
+        position: 'object-[center_30%]',
       },
       lines: [
         { text: 'operationhealingwaters.org', href: 'https://operationhealingwaters.org' },
@@ -103,6 +101,7 @@ function SupportMomAndPops() {
         alt: 'Bait By You shrimp trawler at a bayou dock',
       },
       lines: [
+        { text: 'Live shrimp · Thursday–Sunday · Wilkinson Canal' },
         { text: 'Capt. Sam Ronquille · 504-906-5812', href: 'tel:5049065812' },
       ],
     },
@@ -138,9 +137,9 @@ function SupportMomAndPops() {
         We channel a portion of all donations to support local Louisiana businesses that share our values. You can also support one of our partners directly:
       </p>
       <div className="space-y-2">
-        {partners.map(({ title, image, lines }) => {
-          const copy = (
-            <div className="min-w-0 px-3 py-2">
+        {partners.map(({ title, image, lines }) => (
+          <div key={title} className="grid grid-cols-1 overflow-hidden bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl lg:grid-cols-2">
+            <div className="order-2 min-w-0 px-3 py-2 lg:order-1">
               <h4 className="font-display text-sm text-green-deep dark:text-gold font-semibold leading-snug">{title}</h4>
               {lines.map(({ text, href }) => (
                 href ? (
@@ -154,40 +153,19 @@ function SupportMomAndPops() {
                 )
               ))}
             </div>
-          );
-          if (image?.banner) {
-            return (
-              <div key={title} className="overflow-hidden bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl">
-                <div className="relative aspect-[16/9] w-full">
-                  <Image
-                    src={image.src}
-                    alt={image.alt}
-                    fill
-                    className={`object-cover ${image.position ?? 'object-top'}`}
-                    sizes="(max-width: 768px) 100vw, 520px"
-                  />
-                </div>
-                {copy}
+            {image && (
+              <div className="relative order-1 h-24 lg:order-2 lg:h-auto lg:min-h-[7.5rem]">
+                <Image
+                  src={image.src}
+                  alt={image.alt}
+                  fill
+                  className={`object-cover ${image.position ?? 'object-center'}`}
+                  sizes="(max-width: 1024px) 100vw, 280px"
+                />
               </div>
-            );
-          }
-          return (
-            <div key={title} className="grid grid-cols-1 overflow-hidden bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl lg:grid-cols-2">
-              <div className="order-2 lg:order-1">{copy}</div>
-              {image && (
-                <div className="relative order-1 h-24 lg:order-2 lg:h-auto lg:min-h-[7.5rem]">
-                  <Image
-                    src={image.src}
-                    alt={image.alt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 100vw, 280px"
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
