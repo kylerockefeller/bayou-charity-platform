@@ -506,6 +506,14 @@ export function PinsMap({ userId, role }: PinsMapProps) {
 
   const fisherMapUrl = `https://fishermap.org/?lat=${mapCenter.lat.toFixed(4)}&lng=${mapCenter.lng.toFixed(4)}&zoom=${mapZoom}`;
 
+  function openCatchForm() {
+    handleRequestGeolocation();
+    setShowDropForm(true);
+    window.setTimeout(() => {
+      document.getElementById('drop-pin-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  }
+
   return (
     <div className="space-y-4">
       <style>{`
@@ -514,6 +522,35 @@ export function PinsMap({ userId, role }: PinsMapProps) {
           50% { transform: scale(1.15); opacity: 0.85; }
         }
       `}</style>
+      <section className="rounded-2xl border border-gold/30 bg-gradient-to-br from-cream to-amber/10 dark:from-green-deep/70 dark:to-green-water/20 px-5 py-5 md:px-6 md:py-6">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <span aria-hidden="true" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber/15 text-amber">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" strokeLinejoin="round" />
+              <circle cx="12" cy="10" r="2.2" />
+            </svg>
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-2xl md:text-3xl text-green-deep dark:text-cream">Put your catch on the map</h2>
+            <p className="font-serif text-sm md:text-base text-text-dark dark:text-cream/85 mt-2">
+              Every photo you pin helps build our community fishing almanac. Snap it, pin it, share it.
+            </p>
+            <p className="mt-3">
+              <span className="inline-block rounded-full bg-amber px-3 py-1 font-serif text-xs font-semibold text-white">Coming in future seasons</span>
+            </p>
+            <p className="font-serif text-sm text-text-dark dark:text-cream/85 mt-2">
+              In the years ahead, you&apos;ll be able to flip between seasons and see where fish were biting that time of year.
+            </p>
+            <button
+              type="button"
+              onClick={openCatchForm}
+              className="mt-4 w-full sm:w-auto px-5 py-2.5 bg-amber hover:bg-amber/90 text-white font-serif text-sm rounded-full transition-all hover:scale-[1.02]"
+            >
+              Drop a pin &amp; post a catch
+            </button>
+          </div>
+        </div>
+      </section>
       {/* Season + year filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex gap-1 flex-wrap">
@@ -593,7 +630,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
       {/* Actions row */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <button
-          onClick={() => { handleRequestGeolocation(); setShowDropForm(true); }}
+          onClick={openCatchForm}
           className="px-4 py-2 bg-amber hover:bg-amber/90 text-white font-serif text-sm rounded-full transition-all hover:scale-[1.02]"
         >
           + Drop a Pin &amp; Post a Catch
@@ -615,6 +652,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
+            id="drop-pin-form"
             className="bg-white dark:bg-green-water rounded-2xl p-5 border border-gold/10 space-y-3"
           >
             <h3 className="font-display text-lg text-green-deep dark:text-cream">Drop a Pin</h3>
