@@ -55,7 +55,7 @@ export default function FishingForecast() {
           </span>
           <div className="min-w-0">
             <p className="inline-block rounded-full bg-amber px-3 py-1 font-serif text-xs font-semibold text-white">Coming soon</p>
-            <h2 className="font-display text-2xl md:text-3xl text-green-deep dark:text-cream mt-3">The Bayou Charity Fishing Almanac</h2>
+            <h2 className="font-display text-2xl md:text-3xl text-green-deep dark:text-cream mt-3">Bayou Charity Fishing Almanac (beta)</h2>
             <p className="font-serif text-sm md:text-base text-text-dark dark:text-cream/85 mt-2">
               We&apos;re building a community fishing almanac, made by our members, for our members.
             </p>
