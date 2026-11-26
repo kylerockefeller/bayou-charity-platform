@@ -2,7 +2,7 @@
 
 /**
  * LeafletMap — Client Component island for INNISFREE page.
- * CartoDB Dark Matter tiles. Three markers: Home Base, INNISFREE, Sam's Bait By You.
+ * Esri Dark Gray Canvas tiles. Three markers: Home Base, INNISFREE, Sam's Bait By You.
  * Permanent tooltips + legend.
  */
 
@@ -51,14 +51,17 @@ export default function LeafletMap() {
         scrollWheelZoom: false,
       })
 
-      // CartoDB Dark Matter — no API key
+      // CARTO's raster basemap now returns an "API KEY REQUIRED" tile, so this uses Esri's keyless dark canvas.
       L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
         {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-          subdomains: 'abcd',
-          maxZoom: 19,
+          attribution: 'Tiles &copy; Esri, HERE, Garmin, FAO, NOAA, USGS',
+          maxZoom: 16,
         }
+      ).addTo(map)
+      L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 16, pane: 'overlayPane' }
       ).addTo(map)
 
       MARKERS.forEach((m) => {
