@@ -71,7 +71,6 @@ function ImpactTiers() {
 function SupportMomAndPops() {
   const partners = [
     {
-      emoji: '🎣',
       title: 'Operation Healing Waters / Reel O-Fishal Charters',
       lines: [
         { text: 'operationhealingwaters.org', href: 'https://operationhealingwaters.org' },
@@ -81,14 +80,12 @@ function SupportMomAndPops() {
       ],
     },
     {
-      emoji: '🦐',
       title: "Sam's Bait by You & Alligator Hunts",
       lines: [
         { text: 'Capt. Sam Ronquille · 504-906-5812', href: 'tel:5049065812' },
       ],
     },
     {
-      emoji: '🍞',
       title: 'Three Flours Sourdough',
       lines: [
         { text: 'Local micro bakery owned by a military family · Gretna, LA' },
@@ -96,7 +93,6 @@ function SupportMomAndPops() {
       ],
     },
     {
-      emoji: '🛖',
       title: 'Slow Down Park: Fishing Camp & RV Park',
       lines: [
         { text: 'Book on Airbnb', href: 'https://www.airbnb.com/rooms/1207497072384874993?unique_share_id=d4ca4ef1-3aad-420e-91e4-b819b5f49ec8&viralityEntryPoint=1&s=76' },
@@ -113,9 +109,8 @@ function SupportMomAndPops() {
         We channel a portion of all donations to support local Louisiana businesses that share our values. You can also support one of our partners directly:
       </p>
       <div className="space-y-4">
-        {partners.map(({ emoji, title, lines }) => (
-          <div key={title} className="bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl flex gap-4 items-center p-4">
-            <span className="text-3xl shrink-0">{emoji}</span>
+        {partners.map(({ title, lines }) => (
+          <div key={title} className="bg-cream dark:bg-green-deep/60 border border-green-water/20 dark:border-gold/20 rounded-xl p-4">
             <div className="min-w-0">
               <h4 className="font-display text-base text-green-deep dark:text-gold font-semibold mb-1 leading-snug">{title}</h4>
               {lines.map(({ text, href }) => (
