@@ -396,7 +396,7 @@ function WhoWeAre() {
                 className="text-3xl md:text-4xl font-bold text-green-deep dark:text-cream mb-6 leading-snug"
                 style={{ fontFamily: "'Playfair Display', serif" }}
               >
-                Coastal living is hard work, but the rewards are plenty. Our mission is to share our way of life with those who serve our nation and our communities.
+                Supporting those who serve.
               </h2>
               <blockquote
                 className="text-text-mid dark:text-cream/70 leading-relaxed mb-2 italic border-l-4 border-amber/50 pl-4"
