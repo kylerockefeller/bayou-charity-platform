@@ -1,9 +1,29 @@
-const ZEFFY_STORE_URL = 'https://www.zeffy.com/en-US/ticketing/bayou-charity-shop';
+import Image from 'next/image';
+import { ZeffyEmbed } from '@/components/shared/ZeffyEmbed';
 
-const PRODUCTS = [
-  { name: 'Bayou Charity T-Shirt' },
-  { name: 'Bayou Charity Hat' },
-] as const;
+const ZEFFY_STORE_URL = 'https://www.zeffy.com/en-US/ticketing/bayou-charity-shop';
+const ZEFFY_EMBED_URL = 'https://www.zeffy.com/en-US/embed/ticketing/bayou-charity-shop';
+
+type ShopProduct = {
+  name: string;
+  price: string;
+  details?: string;
+  sizes?: string[];
+  image: string;
+  imageAlt: string;
+};
+
+// Manual catalog. Zeffy has no public product feed, so add the next shirt here.
+const PRODUCTS: ShopProduct[] = [
+  {
+    name: "Remember Everyone Deployed - Bayou Charity's RED Friday T-Shirt",
+    price: 'US$25',
+    details: 'Wear Your Red on Friday! Support Military Families.',
+    image: '/shop/red-friday-tshirt.jpg',
+    imageAlt:
+      'Red t-shirt showing a redfish over an American flag, with R.E.D. FISH, Remember Everyone Deployed, and Support Military Families',
+  },
+];
 
 export default function Shop() {
   return (
@@ -29,31 +49,64 @@ export default function Shop() {
 
       <div className="container mx-auto px-4 max-w-6xl pb-20">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {PRODUCTS.map(({ name }) => (
-            <article key={name} className="glass-card p-8">
-              <div
-                role="img"
-                aria-label="Photo coming soon"
-                className="aspect-[4/3] rounded-xl mb-6 flex items-center justify-center border border-dashed border-green-water/30 dark:border-cream/20 bg-cream/70 dark:bg-green-deep/50"
-              >
-                <span className="font-serif text-sm text-text-mid dark:text-cream/70">
-                  Photo coming soon
-                </span>
+          {PRODUCTS.map((product) => (
+            <article key={product.name} className="glass-card p-6 sm:p-8">
+              <div className="relative aspect-square rounded-xl overflow-hidden mb-6 bg-cream">
+                <Image
+                  src={product.image}
+                  alt={product.imageAlt}
+                  fill
+                  sizes="(min-width: 768px) 50vw, 100vw"
+                  className="object-contain"
+                />
               </div>
-              <h2 className="font-display text-2xl text-green-deep dark:text-gold mb-2">{name}</h2>
-              <p className="font-serif text-sm text-text-mid dark:text-cream/70 mb-6">
-                Price and sizes coming soon
-              </p>
+              <h2 className="font-display text-2xl text-green-deep dark:text-gold mb-2 leading-snug">
+                {product.name}
+              </h2>
+              <p className="font-display text-xl text-amber-700 dark:text-amber mb-2">{product.price}</p>
+              {product.details ? (
+                <p className="font-serif text-sm text-text-mid dark:text-cream/80 leading-relaxed mb-3">
+                  {product.details}
+                </p>
+              ) : null}
+              {product.sizes && product.sizes.length > 0 ? (
+                <p className="font-serif text-sm text-text-mid dark:text-cream/70 mb-6">
+                  Sizes: {product.sizes.join(', ')}
+                </p>
+              ) : null}
               <a
                 href={ZEFFY_STORE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block px-8 py-3 rounded-full font-semibold text-white font-serif transition-all duration-200 hover:scale-105 bg-amber"
               >
-                Shop on Zeffy
+                Buy on Zeffy
               </a>
             </article>
           ))}
+        </div>
+
+        <p className="font-serif text-sm text-cream/80 text-center mt-8">
+          <a
+            href={ZEFFY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber hover:underline"
+          >
+            Open the Bayou Charity store on Zeffy
+          </a>
+        </p>
+
+        <div className="glass-card p-6 sm:p-8 mt-10">
+          <h2 className="font-display text-2xl text-green-deep dark:text-gold mb-2">Buy on this page</h2>
+          <p className="font-serif text-sm text-text-mid dark:text-cream/70 mb-4 leading-relaxed">
+            The form below is Zeffy&apos;s live store embed, so the price and availability stay in sync with the shop.
+          </p>
+          <ZeffyEmbed
+            src={ZEFFY_EMBED_URL}
+            title="Bayou Charity Shop on Zeffy"
+            height="900px"
+          />
         </div>
       </div>
     </section>
