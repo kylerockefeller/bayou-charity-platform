@@ -148,6 +148,9 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
         className="glass-card p-5 space-y-4"
       >
         <h2 className="font-display text-xl text-green-deep dark:text-cream">Submit a Photo</h2>
+        <p className="font-serif text-sm text-text-mid dark:text-cream/70">
+          When you post a photo or share a catch, tell us what you saw on the water: wind, water clarity, tide, bait, and what was biting. Your report helps every member fish smarter.
+        </p>
 
         {events.length > 0 ? (
           <select
@@ -172,7 +175,7 @@ export function MemberGallery({ userId, role }: MemberGalleryProps) {
         />
         <input
           type="text"
-          placeholder="Caption (optional)"
+          placeholder="What did you see out there? Wind, water, tide, what was biting..."
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           className="w-full bg-cream dark:bg-green-deep/60 rounded-xl px-4 py-2.5 font-serif text-text-dark dark:text-cream text-sm focus:outline-none focus:ring-2 focus:ring-amber/40"

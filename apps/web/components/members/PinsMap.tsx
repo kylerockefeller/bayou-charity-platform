@@ -535,6 +535,9 @@ export function PinsMap({ userId, role }: PinsMapProps) {
             <p className="font-serif text-sm md:text-base text-text-dark dark:text-cream/85 mt-2">
               Every photo you pin helps build our community fishing almanac. Snap it, pin it, share it.
             </p>
+            <p className="font-serif text-sm text-text-dark dark:text-cream/85 mt-2">
+              When you post a photo or share a catch, tell us what you saw on the water: wind, water clarity, tide, bait, and what was biting. Your report helps every member fish smarter.
+            </p>
             <p className="mt-3">
               <span className="inline-block rounded-full bg-amber px-3 py-1 font-serif text-xs font-semibold text-white">Coming in future seasons</span>
             </p>
@@ -656,6 +659,9 @@ export function PinsMap({ userId, role }: PinsMapProps) {
             className="bg-white dark:bg-green-water rounded-2xl p-5 border border-gold/10 space-y-3"
           >
             <h3 className="font-display text-lg text-green-deep dark:text-cream">Drop a Pin</h3>
+            <p className="font-serif text-sm text-text-mid dark:text-cream/70">
+              When you post a photo or share a catch, tell us what you saw on the water: wind, water clarity, tide, bait, and what was biting. Your report helps every member fish smarter.
+            </p>
             {clickedLatLng && (
               <p className="text-xs text-text-mid dark:text-cream/60 font-serif">
                 Location: {clickedLatLng.lat.toFixed(4)}, {clickedLatLng.lng.toFixed(4)}
@@ -663,7 +669,7 @@ export function PinsMap({ userId, role }: PinsMapProps) {
             )}
             <input
               type="text"
-              placeholder="What'd you catch? (e.g. Redfish)"
+              placeholder="What did you see out there? Wind, water, tide, what was biting..."
               value={newPin.caption}
               onChange={(e) => setNewPin((p) => ({ ...p, caption: e.target.value }))}
               className="w-full bg-cream dark:bg-green-deep/60 rounded-xl px-4 py-2.5 font-serif text-text-dark dark:text-cream text-sm focus:outline-none focus:ring-2 focus:ring-amber/40"

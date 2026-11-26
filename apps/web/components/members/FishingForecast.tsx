@@ -64,6 +64,9 @@ export default function FishingForecast() {
               <li>Better forecasts built from real days on the water</li>
               <li>A future weather station at INNISFREE for real-time local conditions</li>
             </ul>
+            <p className="font-serif text-sm text-text-dark dark:text-cream/85 mt-3">
+              When you post a photo or share a catch, tell us what you saw on the water: wind, water clarity, tide, bait, and what was biting. Your report helps every member fish smarter.
+            </p>
           </div>
         </div>
       </section>

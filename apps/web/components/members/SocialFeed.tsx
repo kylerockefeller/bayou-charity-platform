@@ -430,6 +430,9 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
           {/* Quick Post */}
           <div className="bg-white dark:bg-green-water/15 rounded-xl border border-green-water/20 dark:border-green-water/30 p-4 shadow-[0_1px_6px_rgba(13,43,62,0.06)] overflow-hidden">
             <h3 className="font-playfair text-[0.85rem] text-gold mb-3 pb-[0.4rem] border-b border-green-water/20 dark:border-green-water/30 flex items-center gap-[0.4rem]">Quick Post</h3>
+            <p className="font-serif text-xs text-text-mid dark:text-cream/70 mb-2">
+              When you post a photo or share a catch, tell us what you saw on the water: wind, water clarity, tide, bait, and what was biting. Your report helps every member fish smarter.
+            </p>
             <div className="space-y-2">
               <div>
                 <label className="block text-xs font-semibold text-text-mid dark:text-cream/60 mb-1" htmlFor="qp-caption">What&apos;d you catch today?</label>
@@ -440,7 +443,7 @@ export default function SocialFeed({ userId, role }: { userId: string; role: str
                   value={caption}
                   onChange={e => setCaption(e.target.value)}
                   maxLength={280}
-                  placeholder="What'd you catch today?"
+                  placeholder="What did you see out there? Wind, water, tide, what was biting..."
                 />
               </div>
               <div className="flex gap-2 items-center">
