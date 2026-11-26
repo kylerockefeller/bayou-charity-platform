@@ -30,7 +30,8 @@ export async function GET(request: Request) {
         'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="${filename}"`,
       },
     });
-  } catch {
-    return new Response('Could not render the preview card.', { status: 500 });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'render failed';
+    return new Response(`Could not render the preview card. ${detail.slice(0, 180)}`, { status: 500 });
   }
 }

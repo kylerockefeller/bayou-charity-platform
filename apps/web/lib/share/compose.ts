@@ -1,7 +1,6 @@
-import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { Image } from 'imagescript';
 import { pinImageBox, sanitizeCrop, type PinCrop } from '@/lib/pin-crop';
+import { readBundledAsset } from './assets';
 import { STRIP_NAME, CLUB_URL } from './copy';
 import {
   ACTIVE_SHARE_FRAME,
@@ -27,8 +26,8 @@ let lockupImage: Image | null = null;
 
 async function fonts(): Promise<Uint8Array[]> {
   if (fontBuffers) return fontBuffers;
-  const regular = new Uint8Array(await readFile(fileURLToPath(new URL('./fonts/LiberationSans-Regular.ttf', import.meta.url))));
-  const bold = new Uint8Array(await readFile(fileURLToPath(new URL('./fonts/LiberationSans-Bold.ttf', import.meta.url))));
+  const regular = await readBundledAsset('regular');
+  const bold = await readBundledAsset('bold');
   fontBuffers = [regular, bold];
   return fontBuffers;
 }
@@ -55,13 +54,13 @@ function tintWordmark(logo: Image): Image {
 
 export async function loadLockup(): Promise<Image> {
   if (lockupImage) return lockupImage.clone();
-  const bytes = new Uint8Array(await readFile(fileURLToPath(new URL('../../public/brand/bayou-charity-logo-light-text.png', import.meta.url))));
+  const bytes = await readBundledAsset('logo');
   lockupImage = tintWordmark(await Image.decode(bytes));
   return lockupImage.clone();
 }
 
 export async function loadMarshBackground(): Promise<Uint8Array> {
-  return new Uint8Array(await readFile(fileURLToPath(new URL('../../public/Photos/Skyline Marsh golden hue.jpg', import.meta.url))));
+  return readBundledAsset('marsh');
 }
 
 function xml(value: string): string {
