@@ -43,7 +43,7 @@ function PaymentChips() {
 function ImpactTiers() {
   const tiers = [
     { amount: '$50', description: 'Covers fuel for member-supported fishing trips' },
-    { amount: '$100', description: 'Covers a beginner\'s class and a day of dock fishing for a BFF family' },
+    { amount: '$100', description: 'Covers a catch and cook fishing day at the camp.' },
     { amount: '$250', description: 'Covers a parent and child fishing trip with a licensed guide' },
     { amount: '$500', description: 'Covers a family of 4 fishing trip with a licensed guide' },
   ];
@@ -203,7 +203,7 @@ function LicensedGuides() {
     <div>
       <h3 className="font-display text-xl text-gold mb-2">Licensed Fishing Guides</h3>
       <p className="font-serif text-sm text-cream/95 leading-relaxed mb-4">
-        These trusted guides support BFF&apos;s mission and offer exceptional Louisiana fishing experiences.
+        These trusted guides support our mission and offer exceptional Louisiana fishing experiences. Booking with them supports local mom-and-pop businesses.
       </p>
       <div className="bg-amber/10 border border-amber/30 rounded-xl p-4 mb-4">
         <p className="font-serif text-sm text-cream leading-relaxed">
