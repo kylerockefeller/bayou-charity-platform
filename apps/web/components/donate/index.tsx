@@ -203,7 +203,16 @@ function LicensedGuides() {
     <div>
       <h3 className="font-display text-xl text-gold mb-2">Licensed Fishing Guides</h3>
       <p className="font-serif text-sm text-cream/95 leading-relaxed mb-4">
-        These trusted guides support our mission and offer exceptional Louisiana fishing experiences. Booking with them supports local mom-and-pop businesses.
+        These trusted guides support our mission and offer exceptional Louisiana fishing experiences. Booking with them supports local mom-and-pop businesses. Like{' '}
+        <a
+          href="https://www.loafaly.com/shop/three-flours-sourdough"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-amber hover:underline"
+        >
+          Three Flours Sourdough
+        </a>
+        , a local micro bakery owned by a military family.
       </p>
       <div className="bg-amber/10 border border-amber/30 rounded-xl p-4 mb-4">
         <p className="font-serif text-sm text-cream leading-relaxed">
