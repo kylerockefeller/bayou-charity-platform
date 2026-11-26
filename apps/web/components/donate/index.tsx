@@ -71,10 +71,10 @@ function ImpactTiers() {
 
 function SupportMomAndPops() {
   // All four cards share the compact half-and-half layout. Healing Waters uses
-  // a framed copy of gallery-2 from operationhealingwaters.org so an angler
-  // and the fish fit the wide photo slot. The original hero download is
-  // unchanged. Three Flours is third-party. Sam's reuses the boats-page
-  // trawler. Slow Down Park is the Airbnb cover already linked on that card.
+  // the story photo of Captain Derrious Austin from operationhealingwaters.org,
+  // framed so his face and the shirt name fit the wide slot. The earlier
+  // downloads are unchanged. Three Flours is third-party. Sam's reuses the
+  // boats-page trawler. Slow Down Park is the Airbnb cover linked on that card.
   const partners: {
     title: string
     image?: { src: string; alt: string; position?: string }
@@ -83,9 +83,9 @@ function SupportMomAndPops() {
     {
       title: 'Operation Healing Waters / Reel O-Fishal Charters',
       image: {
-        src: '/partners/operation-healing-waters-side.jpg',
-        alt: 'An angler holding a redfish on the water',
-        position: 'object-[center_30%]',
+        src: '/partners/operation-healing-waters-captain.jpg',
+        alt: 'Captain Derrious Austin smiling with a redfish, Reel O-Fishal shirt visible',
+        position: 'object-top',
       },
       lines: [
         { text: 'operationhealingwaters.org', href: 'https://operationhealingwaters.org' },
