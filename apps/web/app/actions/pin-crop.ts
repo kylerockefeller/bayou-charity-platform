@@ -24,18 +24,14 @@ export async function updatePinPhotoCrop(
       set() {},
     });
 
-    const { data: { user }, error: userError } = await withTimeout(
-      userClient.auth.getUser(),
-      12000,
-      'Checking your sign-in took too long. Please try again.',
-    );
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) return { ok: false, error: 'You must be signed in.' };
 
-    const { data: profile, error: profileError } = await withTimeout(
-      userClient.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-      12000,
-      'Checking your account took too long. Please try again.',
-    );
+    const { data: profile, error: profileError } = await userClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
 
     if (profileError || profile?.role !== 'admin') {
       return { ok: false, error: 'Only an admin can adjust a pin photo crop.' };
@@ -49,18 +45,13 @@ export async function updatePinPhotoCrop(
 
     const admin = createClient(url, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      global: { fetch: fetchWithTimeout },
     });
 
-    const { data, error } = await withTimeout(
-      admin.from('pins').update({
-        photo_crop_x: safe.x,
-        photo_crop_y: safe.y,
-        photo_crop_zoom: safe.zoom,
-      }).eq('id', pinId).select('id').maybeSingle(),
-      12000,
-      'Saving the crop took too long. Please try again.',
-    );
+    const { data, error } = await admin.from('pins').update({
+      photo_crop_x: safe.x,
+      photo_crop_y: safe.y,
+      photo_crop_zoom: safe.zoom,
+    }).eq('id', pinId).select('id').maybeSingle();
 
     if (error) {
       if (isMissingCropColumn(error)) {
@@ -77,26 +68,4 @@ export async function updatePinPhotoCrop(
     const message = err instanceof Error ? err.message : 'Could not save the crop.';
     return { ok: false, error: message || 'Could not save the crop.' };
   }
-}
-
-function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const timeout = AbortSignal.timeout(12000);
-  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
-  return fetch(input, { ...init, signal });
-}
-
-function withTimeout<T>(promise: PromiseLike<T>, ms: number, message: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
-    Promise.resolve(promise).then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
-  });
 }
