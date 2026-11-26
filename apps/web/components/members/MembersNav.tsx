@@ -22,7 +22,7 @@ const baseTabs = [
   { href: '/members/feed',      label: '📸 Feed' },
   { href: '/members/community', label: '💬 Community' },
   { href: '/members/map',       label: '🗺️ Map' },
-  { href: '/members/forecast',  label: '🌤️ Forecast' },
+  { href: '/members/forecast',  label: '🌤️ Forecast & Almanac' },
   { href: '/members/gallery',   label: '🌊 Gallery' },
   { href: '/members/profile',   label: '🎣 Profile' },
 ];

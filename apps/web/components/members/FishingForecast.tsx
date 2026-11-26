@@ -38,11 +38,35 @@ export default function FishingForecast() {
     <div className="space-y-5">
       <header>
         <p className="font-accent text-amber text-sm">Members</p>
-        <h1 className="font-display text-3xl md:text-4xl text-green-deep dark:text-cream">Fishing forecast</h1>
+        <h1 className="font-display text-3xl md:text-4xl text-green-deep dark:text-cream">Fishing Forecast & Almanac</h1>
         <p className="font-serif text-sm text-text-mid dark:text-cream/70 mt-1">
           Seven days back, today, and seven days ahead. Past days are what was observed. Today and the days ahead are the forecast.
         </p>
       </header>
+
+      <section className="rounded-2xl border border-gold/30 bg-gradient-to-br from-cream to-amber/10 dark:from-green-deep/70 dark:to-green-water/20 px-5 py-5 md:px-6 md:py-6">
+        <div className="flex items-start gap-4">
+          <span aria-hidden="true" className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber/15 text-amber">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" strokeLinecap="round" />
+              <path d="m12 8 2.2 4.2L12 16l-2.2-3.8L12 8z" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <p className="inline-block rounded-full bg-amber px-3 py-1 font-serif text-xs font-semibold text-white">Coming soon</p>
+            <h2 className="font-display text-2xl md:text-3xl text-green-deep dark:text-cream mt-3">The Bayou Charity Fishing Almanac</h2>
+            <p className="font-serif text-sm md:text-base text-text-dark dark:text-cream/85 mt-2">
+              We&apos;re building a community fishing almanac, made by our members, for our members.
+            </p>
+            <ul className="mt-3 space-y-1.5 font-serif text-sm text-text-dark dark:text-cream/85 list-disc pl-5">
+              <li>Fishing data and local knowledge, compiled with Ripp</li>
+              <li>Better forecasts built from real days on the water</li>
+              <li>A future weather station at Industry for real-time local conditions</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
       {result.status === 'example' && (
         <div className="rounded-xl border border-amber/40 bg-amber/10 px-4 py-3">
